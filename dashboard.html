@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CFO Robot v4.0 - Business Intelligence Dashboard</title>
+  
+  <!-- React & Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <style>
+    /* ===================================== */
+    /* CFO ROBOT v4.0 - DESIGN SYSTEM */
+    /* ===================================== */
+    
+    :root {
+      --primary: #1976D2;
+      --primary-dark: #1565C0;
+      --primary-light: #42A5F5;
+      
+      --success: #00C853;
+      --warning: #FFD600;
+      --danger: #D50000;
+      
+      --gray-50: #FAFAFA;
+      --gray-100: #F5F5F5;
+      --gray-200: #EEEEEE;
+      --gray-300: #E0E0E0;
+      --gray-500: #9E9E9E;
+      --gray-700: #616161;
+      --gray-900: #212121;
+      
+      --spacing-xs: 8px;
+      --spacing-sm: 16px;
+      --spacing-md: 24px;
+      --spacing-lg: 32px;
+      --spacing-xl: 48px;
+      
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 20px rgba(0,0,0,0.15);
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+    
+    /* ===================================== */
+    /* LAYOUT */
+    /* ===================================== */
+    
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      width: 280px;
+      background: white;
+      border-right: 1px solid var(--gray-200);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      height: 100vh;
+      left: 0;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .sidebar .logo {
+      padding: var(--spacing-md);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      margin: var(--spacing-xs);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+    
+    .nav-item:hover {
+      background: var(--gray-100);
+    }
+    
+    .nav-item.active {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .main-content {
+      margin-left: 280px;
+      flex: 1;
+      padding: var(--spacing-lg);
+      max-width: 1600px;
+    }
+    
+    /* ===================================== */
+    /* RATING HERO CARD */
+    /* ===================================== */
+    
+    .rating-hero-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      box-shadow: var(--shadow-lg);
+      display: grid;
+      grid-template-columns: 280px 1fr 280px;
+      gap: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .rating-circle {
+      width: 200px;
+      height: 200px;
+      border: 12px solid;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+    }
+    
+    .rating-letter {
+      font-size: 64px;
+      font-weight: 900;
+    }
+    
+    .rating-score {
+      font-size: 20px;
+      color: var(--gray-500);
+      margin-top: 8px;
+    }
+    
+    .company-name {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .rating-risk {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    /* ===================================== */
+    /* SCORE BREAKDOWN */
+    /* ===================================== */
+    
+    .score-breakdown {
+      background: white;
+      border-radius: var(--radius-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .dimension-row {
+      display: grid;
+      grid-template-columns: 250px 1fr 80px 120px;
+      gap: var(--spacing-md);
+      align-items: center;
+      padding: var(--spacing-md) 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    
+    .dimension-bar {
+      height: 32px;
+      background: var(--gray-200);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    
+    .dimension-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-light));
+      transition: width 0.8s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 12px;
+      color: white;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    
+    .dimension-row.critical .dimension-fill {
+      background: linear-gradient(90deg, var(--danger), #FF5252);
+    }
+    
+    .dimension-row.warning .dimension-fill {
+      background: linear-gradient(90deg, var(--warning), #FFEB3B);
+      color: var(--gray-900);
+    }
+    
+    .dimension-row.good .dimension-fill {
+      background: linear-gradient(90deg, var(--success), #69F0AE);
+    }
+    
+    /* ===================================== */
+    /* ALERTS */
+    /* ===================================== */
+    
+    .alert-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .alert-card {
+      background: white;
+      border-left: 4px solid;
+      padding: var(--spacing-md);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .alert-card.critical {
+      border-color: var(--danger);
+      background: #FFEBEE;
+    }
+    
+    .alert-card.warning {
+      border-color: var(--warning);
+      background: #FFF9C4;
+    }
+    
+    .alert-card.success {
+      border-color: var(--success);
+      background: #E8F5E9;
+    }
+    
+    /* ===================================== */
+    /* ACTIONS CARD */
+    /* ===================================== */
+    
+    .action-item {
+      background: white;
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      border: 2px solid var(--gray-200);
+      margin-bottom: var(--spacing-sm);
+      display: grid;
+      grid-template-columns: 60px 1fr 140px;
+      gap: var(--spacing-md);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .action-item:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+    
+    .action-rank {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    /* ===================================== */
+    /* BUTTONS */
+    /* ===================================== */
+    
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+    
+    /* ===================================== */
+    /* UTILITIES */
+    /* ===================================== */
+    
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid var(--gray-200);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    /* ===================================== */
+    /* LOGIN */
+    /* ===================================== */
+    
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    }
+    
+    .auth-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      box-shadow: var(--shadow-lg);
+      max-width: 450px;
+      width: 100%;
+    }
+    
+    .auth-logo {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .form-group {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .form-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    /* ===================================== */
+    /* RESPONSIVE */
+    /* ===================================== */
+    
+    @media (max-width: 1024px) {
+      .rating-hero-card {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .main-content {
+        margin-left: 0;
+        padding: var(--spacing-sm);
+      }
+      
+      .dimension-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .action-item {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    const API_BASE = 'http://localhost:3001/api';
+    
+    const RATING_SCALE = {
+      'AAA': { min: 95, max: 100, risk: 'Minimo', color: '#00C853' },
+      'AA':  { min: 85, max: 94,  risk: 'Molto Basso', color: '#64DD17' },
+      'A':   { min: 75, max: 84,  risk: 'Basso', color: '#AEEA00' },
+      'BBB': { min: 65, max: 74,  risk: 'Moderato', color: '#FFD600' },
+      'BB':  { min: 55, max: 64,  risk: 'Medio', color: '#FFAB00' },
+      'B':   { min: 45, max: 54,  risk: 'Elevato', color: '#FF6D00' },
+      'CCC': { min: 35, max: 44,  risk: 'Molto Elevato', color: '#FF3D00' },
+      'CC':  { min: 25, max: 34,  risk: 'Pre-Crisi', color: '#D50000' },
+      'C':   { min: 0,  max: 24,  risk: 'Crisi', color: '#B71C1C' }
+    };
+    
+    // ===================================
+    // MAIN APP
+    // ===================================
+    
+    function App() {
+      const [user, setUser] = useState(null);
+      const [scoreData, setScoreData] = useState(null);
+      const [activeView, setActiveView] = useState('dashboard');
+      const [loading, setLoading] = useState(true);
+      
+      useEffect(() => {
+        const savedUser = localStorage.getItem('cfo_user');
+        const savedToken = localStorage.getItem('cfo_token');
+        
+        if (savedUser && savedToken) {
+          setUser(JSON.parse(savedUser));
+        }
+        setLoading(false);
+      }, []);
+      
+      if (loading) {
+        return (
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <p style={{marginTop: '20px', color: 'var(--gray-500)'}}>Caricamento...</p>
+          </div>
+        );
+      }
+      
+      if (!user) {
+        return <LoginView onLogin={(userData, token) => {
+          setUser(userData);
+          localStorage.setItem('cfo_user', JSON.stringify(userData));
+          localStorage.setItem('cfo_token', token);
+        }} />;
+      }
+      
+      return (
+        <div className="app-container">
+          <Sidebar 
+            role={user.role}
+            activeView={activeView}
+            setActiveView={setActiveView}
+            user={user}
+          />
+          
+          <div className="main-content">
+            {activeView === 'dashboard' && (
+              <DashboardView user={user} />
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // ===================================
+    // SIDEBAR
+    // ===================================
+    
+    function Sidebar({ role, activeView, setActiveView, user }) {
+      const menu = [
+        { id: 'dashboard', icon: '📊', label: 'Dashboard', badge: null },
+        { id: 'strategy', icon: '🎯', label: 'Strategia', badge: '3' },
+        { id: 'insights', icon: '📈', label: 'Insights', badge: null },
+        { id: 'tools', icon: '💼', label: 'Strumenti', badge: 'NEW' }
+      ];
+      
+      return (
+        <div className="sidebar">
+          <div className="logo">
+            🤖 CFO Robot v4.0
+          </div>
+          
+          <nav style={{flex: 1, padding: '16px'}}>
+            {menu.map(item => (
+              <div
+                key={item.id}
+                className={`nav-item ${activeView === item.id ? 'active' : ''}`}
+                onClick={() => setActiveView(item.id)}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+                {item.badge && <span style={{marginLeft: 'auto', fontSize: '11px'}}>{item.badge}</span>}
+              </div>
+            ))}
+          </nav>
+          
+          <div style={{padding: '16px', borderTop: '1px solid var(--gray-200)'}}>
+            <div style={{fontSize: '14px', fontWeight: 600}}>{user.nome} {user.cognome}</div>
+            <div style={{fontSize: '12px', color: 'var(--gray-500)'}}>{user.role}</div>
+          </div>
+        </div>
+      );
+    }
+    
+    // ===================================
+    // DASHBOARD VIEW
+    // ===================================
+    
+    function DashboardView({ user }) {
+      const [scoreData, setScoreData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      
+      useEffect(() => {
+        setTimeout(() => {
+          const mockScore = {
+            score: 78,
+            rating: 'A',
+            breakdown: {
+              liquidita: { score: 82, weight: 0.30 },
+              redditivita: { score: 75, weight: 0.25 },
+              solidita: { score: 85, weight: 0.20 },
+              performance: { score: 70, weight: 0.15 },
+              prospettive: { score: 68, weight: 0.10 }
+            }
+          };
+          
+          setScoreData(mockScore);
+          setLoading(false);
+        }, 1000);
+      }, []);
+      
+      if (loading) {
+        return (
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <p style={{marginTop: '20px'}}>Caricamento dashboard...</p>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="fade-in">
+          <h1>Dashboard</h1>
+          <p style={{color: 'var(--gray-500)', marginBottom: '32px'}}>
+            Panoramica completa della salute finanziaria aziendale
+          </p>
+          
+          <RatingHeroCard scoreData={scoreData} />
+          <ScoreBreakdown breakdown={scoreData.breakdown} />
+          <AlertSection />
+          <TopActionsCard />
+        </div>
+      );
+    }
+    
+    // ===================================
+    // RATING HERO CARD
+    // ===================================
+    
+    function RatingHeroCard({ scoreData }) {
+      const ratingInfo = RATING_SCALE[scoreData.rating];
+      
+      return (
+        <div className="rating-hero-card">
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+            <div 
+              className="rating-circle"
+              style={{ borderColor: ratingInfo.color }}
+            >
+              <div className="rating-letter" style={{ color: ratingInfo.color }}>
+                {scoreData.rating}
+              </div>
+              <div className="rating-score">{scoreData.score}/100</div>
+            </div>
+          </div>
+          
+          <div>
+            <div className="company-name">AlzaRating S.r.l.</div>
+            <div style={{color: 'var(--gray-500)', fontSize: '14px', marginBottom: '24px'}}>
+              P.IVA 12345678901
+            </div>
+            
+            <div 
+              className="rating-risk"
+              style={{ 
+                background: ratingInfo.color + '20',
+                color: ratingInfo.color 
+              }}
+            >
+              Rischio: {ratingInfo.risk}
+            </div>
+            
+            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px'}}>
+              <div>📈 <strong>+5 punti</strong> vs 30 giorni fa</div>
+              <div>📊 Top <strong>25%</strong> settore</div>
+              <div>🕒 Aggiornato: {new Date().toLocaleDateString('it-IT')}</div>
+            </div>
+          </div>
+          
+          <div style={{display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center'}}>
+            <button className="btn btn-primary">📊 Dettaglio Completo</button>
+            <button className="btn btn-secondary">🔗 Condividi Rating</button>
+            <button className="btn btn-secondary">📄 Esporta PDF</button>
+          </div>
+        </div>
+      );
+    }
+    
+    // ===================================
+    // SCORE BREAKDOWN
+    // ===================================
+    
+    function ScoreBreakdown({ breakdown }) {
+      const dimensions = [
+        { key: 'liquidita', label: 'Liquidità & Solvibilità', icon: '💰', weight: 30 },
+        { key: 'redditivita', label: 'Redditività', icon: '📈', weight: 25 },
+        { key: 'solidita', label: 'Solidità Patrimoniale', icon: '⚖️', weight: 20 },
+        { key: 'performance', label: 'Performance Operativa', icon: '🎯', weight: 15 },
+        { key: 'prospettive', label: 'Prospettive & Rischio', icon: '🔮', weight: 10 }
+      ];
+      
+      const getStatus = (score) => {
+        if (score >= 75) return 'good';
+        if (score >= 50) return 'warning';
+        return 'critical';
+      };
+      
+      return (
+        <div className="score-breakdown">
+          <h2 style={{marginBottom: '24px'}}>📊 Breakdown Score per Dimensione</h2>
+          
+          {dimensions.map(dim => {
+            const score = breakdown[dim.key]?.score || 0;
+            const status = getStatus(score);
+            
+            return (
+              <div key={dim.key} className={`dimension-row ${status}`}>
+                <div>
+                  <span style={{fontSize: '24px', marginRight: '12px'}}>{dim.icon}</span>
+                  <span>
+                    <strong>{dim.label}</strong>
+                    <div style={{fontSize: '12px', color: 'var(--gray-500)'}}>
+                      ({dim.weight}% peso)
+                    </div>
+                  </span>
+                </div>
+                
+                <div className="dimension-bar">
+                  <div 
+                    className="dimension-fill"
+                    style={{ width: `${score}%` }}
+                  >
+                    {score >= 40 && `${score}%`}
+                  </div>
+                </div>
+                
+                <div style={{fontSize: '20px', fontWeight: 700, textAlign: 'center'}}>
+                  {score}/100
+                </div>
+                
+                <button className="btn btn-secondary" style={{padding: '8px 16px'}}>
+                  Dettagli →
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    
+    // ===================================
+    // ALERT SECTION
+    // ===================================
+    
+    function AlertSection() {
+      const alerts = [
+        {
+          severity: 'critical',
+          title: 'DSO Elevato (85 giorni)',
+          description: 'I tempi di incasso crediti superano la media settore'
+        },
+        {
+          severity: 'warning',
+          title: 'EBITDA Margin in calo',
+          description: 'Margine operativo sceso dal 15% al 12% YoY'
+        }
+      ];
+      
+      return (
+        <div className="alert-section">
+          {alerts.map((alert, i) => (
+            <div key={i} className={`alert-card ${alert.severity}`}>
+              <h3>{alert.severity === 'critical' ? '🔴' : '🟡'} {alert.title}</h3>
+              <p style={{marginTop: '8px', fontSize: '14px'}}>{alert.description}</p>
+              <button className="btn btn-primary" style={{marginTop: '16px', fontSize: '13px'}}>
+                Vedi Dettaglio →
+              </button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    // ===================================
+    // TOP ACTIONS
+    // ===================================
+    
+    function TopActionsCard() {
+      const actions = [
+        {
+          title: 'Ridurre DSO (Tempi Incasso)',
+          description: 'Implementare policy recupero crediti',
+          impact: 8,
+          urgency: 'ALTA'
+        },
+        {
+          title: 'Aumentare Margini Operativi',
+          description: 'Revisione pricing e costi',
+          impact: 10,
+          urgency: 'ALTA'
+        },
+        {
+          title: 'Ottimizzare Cash Flow',
+          description: 'Migliorare gestione liquidità',
+          impact: 6,
+          urgency: 'MEDIA'
+        }
+      ];
+      
+      return (
+        <div style={{background: 'white', padding: '32px', borderRadius: '12px'}}>
+          <h2>💡 Le Tue Top 3 Azioni per Migliorare il Rating</h2>
+          <p style={{marginBottom: '24px', fontSize: '14px', color: 'var(--gray-600)'}}>
+            Completando queste azioni puoi guadagnare fino a <strong>+24 punti score</strong>
+          </p>
+          
+          {actions.map((action, index) => (
+            <div key={index} className="action-item">
+              <div className="action-rank">#{index + 1}</div>
+              
+              <div>
+                <h3>{action.title}</h3>
+                <p style={{fontSize: '14px', color: 'var(--gray-600)', marginTop: '4px'}}>
+                  {action.description}
+                </p>
+                <div style={{marginTop: '8px', display: 'flex', gap: '8px'}}>
+                  <span style={{
+                    background: 'var(--success)',
+                    color: 'white',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600
+                  }}>
+                    ⬆️ +{action.impact} punti
+                  </span>
+                  <span style={{
+                    background: action.urgency === 'ALTA' ? 'var(--danger)' : 'var(--warning)',
+                    color: 'white',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600
+                  }}>
+                    Urgenza: {action.urgency}
+                  </span>
+                </div>
+              </div>
+              
+              <button className="btn btn-primary">Inizia →</button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    // ===================================
+    // LOGIN VIEW
+    // ===================================
+    
+    function LoginView({ onLogin }) {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [loading, setLoading] = useState(false);
+      
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        
+        setTimeout(() => {
+          const mockUser = {
+            id: '1',
+            email: email,
+            nome: 'Dave',
+            cognome: 'AlzaRating',
+            role: 'imprenditore'
+          };
+          
+          onLogin(mockUser, 'mock_token_123');
+          setLoading(false);
+        }, 1000);
+      };
+      
+      return (
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="auth-logo">🤖 CFO Robot v4.0</div>
+            
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                style={{width: '100%', padding: '14px', fontSize: '16px'}}
+                disabled={loading}
+              >
+                {loading ? 'Accesso in corso...' : 'Accedi'}
+              </button>
+            </form>
+            
+            <div style={{textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--gray-500)'}}>
+              Demo: usa qualsiasi email/password
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // ===================================
+    // RENDER
+    // ===================================
+    
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
