@@ -336,14 +336,20 @@
         function CompanyDetail({ company, token, setView, setSelectedCompany }) {
             const [loading, setLoading] = useState(false);
             const [score, setScore] = useState(null);
+            const [error, setError] = useState(null);
+
+            console.log('[CompanyDetail] Rendering with company:', company);
 
             useEffect(() => {
+                console.log('[CompanyDetail] useEffect triggered');
                 calculateScore();
             }, [company._id]);
 
             const calculateScore = async () => {
                 setLoading(true);
+                setError(null);
                 try {
+                    console.log('[CompanyDetail] Calculating score for company:', company._id);
                     const response = await fetch(`${API_BASE}/scoring/${company._id}/calculate`, {
                         method: 'POST',
                         headers: { 
@@ -352,13 +358,18 @@
                         }
                     });
 
+                    console.log('[CompanyDetail] Score response status:', response.status);
                     const data = await response.json();
+                    console.log('[CompanyDetail] Score data:', data);
                     
                     if (data.success) {
                         setScore(data.scoring);
+                    } else {
+                        setError(data.error || 'Errore calcolo score');
                     }
                 } catch (err) {
-                    console.error('Error calculating score:', err);
+                    console.error('[CompanyDetail] Error calculating score:', err);
+                    setError('Errore connessione: ' + err.message);
                 } finally {
                     setLoading(false);
                 }
@@ -388,8 +399,38 @@
                 return 'bg-red-500';
             };
 
+            // Safety check
+            if (!company) {
+                return (
+                    <div className="p-8">
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                            ⚠️ ERRORE: Dati azienda non disponibili
+                        </div>
+                        <button
+                            onClick={() => setView('companies')}
+                            className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg"
+                        >
+                            Torna alle Aziende
+                        </button>
+                    </div>
+                );
+            }
+
             return (
                 <div className="p-8 max-w-7xl mx-auto">
+                    {/* DEBUG INFO */}
+                    {!company && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            ⚠️ ERRORE: company è undefined!
+                        </div>
+                    )}
+                    
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            ⚠️ ERRORE: {error}
+                        </div>
+                    )}
+
                     <div className="flex items-center justify-between mb-8">
                         <button
                             onClick={() => {
