@@ -6,7 +6,7 @@
     <title>CFO Robot v4.0 - Dashboard</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -33,7 +33,7 @@
                     fetch(`${API_BASE}/auth/me`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     })
-                    .then(r => r.json())
+                    .then(res => res.json())
                     .then(data => {
                         if (data.user) {
                             setUser(data.user);
@@ -58,17 +58,18 @@
                 setView('dashboard');
             };
 
-            if (!user) {
+            if (!token || !user) {
                 return <AuthScreen onLogin={login} />;
             }
 
             return (
-                <div className="min-h-screen flex">
+                <div className="flex h-screen bg-gray-100">
                     <Sidebar view={view} setView={setView} logout={logout} user={user} />
-                    <main className="flex-1 p-8">
+                    <main className="flex-1 overflow-auto">
                         {view === 'dashboard' && <Dashboard token={token} />}
                         {view === 'companies' && <Companies token={token} />}
                         {view === 'new-company' && <NewCompany token={token} setView={setView} />}
+                        {view === 'import-piva' && <ImportPIVA token={token} setView={setView} />}
                     </main>
                 </div>
             );
@@ -102,11 +103,17 @@
                         >
                             ➕ Nuova Azienda
                         </button>
+                        <button
+                            onClick={() => setView('import-piva')}
+                            className={`w-full text-left px-4 py-2 rounded ${view === 'import-piva' ? 'bg-blue-800' : 'hover:bg-blue-800'}`}
+                        >
+                            📥 Import da P.IVA
+                        </button>
                     </nav>
 
                     <div className="mt-auto pt-8 border-t border-blue-800">
-                        <p className="text-sm text-blue-300 mb-2">
-                            {user.nome} {user.cognome}
+                        <p className="text-sm text-blue-300 mb-4">
+                            {user.name} {user.cognome}
                         </p>
                         <button
                             onClick={logout}
@@ -127,7 +134,7 @@
             const [formData, setFormData] = useState({
                 email: '',
                 password: '',
-                nome: '',
+                name: '',
                 cognome: ''
             });
 
@@ -161,13 +168,13 @@
             return (
                 <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-900">
                     <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-                        <h2 className="text-3xl font-bold text-center mb-2">CFO Robot v4.0</h2>
+                        <h2 className="text-3xl font-bold text-center mb-6">CFO Robot v4.0</h2>
                         <p className="text-gray-600 text-center mb-6">
                             {isLogin ? 'Accedi al tuo account' : 'Crea un nuovo account'}
                         </p>
 
                         {error && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">
+                            <div className="bg-red-50 text-red-800 p-3 rounded mb-4 text-sm">
                                 {error}
                             </div>
                         )}
@@ -178,8 +185,8 @@
                                     <input
                                         type="text"
                                         placeholder="Nome"
-                                        value={formData.nome}
-                                        onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
                                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
                                         required
                                     />
@@ -241,31 +248,43 @@
                 fetch(`${API_BASE}/companies`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
-                .then(r => r.json())
+                .then(res => res.json())
                 .then(data => {
-                    const companies = data.companies || [];
-                    setStats({
-                        total: companies.length,
-                        withScore: companies.filter(c => c.score).length,
-                        avgScore: companies.length > 0 
-                            ? companies.filter(c => c.score).reduce((sum, c) => sum + (c.score.finalScore || 0), 0) / companies.filter(c => c.score).length 
-                            : 0
-                    });
+                    if (data.success) {
+                        const companies = data.companies || [];
+                        const withScore = companies.filter(c => c.score_creditizio?.score > 0);
+                        const avgScore = withScore.length > 0
+                            ? Math.round(withScore.reduce((sum, c) => sum + c.score_creditizio.score, 0) / withScore.length)
+                            : 0;
+
+                        setStats({
+                            total: companies.length,
+                            withScore: withScore.length,
+                            avgScore: avgScore
+                        });
+                    }
                     setLoading(false);
                 })
-                .catch(() => setLoading(false));
+                .catch(err => {
+                    console.error(err);
+                    setLoading(false);
+                });
             }, [token]);
 
             if (loading) {
-                return <div className="text-center py-12">Caricamento...</div>;
+                return (
+                    <div className="flex items-center justify-center h-screen">
+                        <div className="text-xl">Caricamento...</div>
+                    </div>
+                );
             }
 
             return (
-                <div>
+                <div className="p-8">
                     <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white rounded-lg shadow p-6">
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white p-6 rounded-lg shadow">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-gray-600 text-sm">Aziende Totali</p>
@@ -275,7 +294,7 @@
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow p-6">
+                        <div className="bg-white p-6 rounded-lg shadow">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-gray-600 text-sm">Con Score</p>
@@ -285,151 +304,85 @@
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow p-6">
+                        <div className="bg-white p-6 rounded-lg shadow">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-gray-600 text-sm">Score Medio</p>
-                                    <p className="text-3xl font-bold text-purple-600">
-                                        {stats?.avgScore ? stats.avgScore.toFixed(0) : '0'}
-                                    </p>
+                                    <p className="text-3xl font-bold text-purple-600">{stats?.avgScore || 0}</p>
                                 </div>
                                 <div className="text-4xl">📊</div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-blue-900 mb-2">🚀 Sistema Operativo!</h3>
-                        <p className="text-blue-700">
-                            Backend API connesso e funzionante. Tutte le funzionalità core sono attive.
-                        </p>
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                        <div className="flex items-center gap-3">
+                            <div className="text-3xl">🚀</div>
+                            <div>
+                                <h3 className="font-bold text-lg text-blue-900">Sistema Operativo!</h3>
+                                <p className="text-blue-700">Backend API connesso e funzionante. Tutte le funzionalità core sono attive.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
         }
 
-        // Companies List Component
+        // Companies Component
         function Companies({ token }) {
             const [companies, setCompanies] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [selectedCompany, setSelectedCompany] = useState(null);
-            const [calculatingScore, setCalculatingScore] = useState(null);
 
             useEffect(() => {
                 loadCompanies();
-            }, [token]);
+            }, []);
 
             const loadCompanies = () => {
                 fetch(`${API_BASE}/companies`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
-                .then(r => r.json())
+                .then(res => res.json())
                 .then(data => {
-                    setCompanies(data.companies || []);
+                    if (data.success) {
+                        setCompanies(data.companies || []);
+                    }
                     setLoading(false);
                 })
-                .catch(() => setLoading(false));
-            };
-
-            const calculateScore = async (companyId) => {
-                setCalculatingScore(companyId);
-                try {
-                    const response = await fetch(`${API_BASE}/scoring/${companyId}`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                        loadCompanies();
-                        alert('Score calcolato con successo!');
-                    } else {
-                        alert('Errore nel calcolo dello score');
-                    }
-                } catch (err) {
-                    alert('Errore nel calcolo dello score');
-                } finally {
-                    setCalculatingScore(null);
-                }
+                .catch(err => {
+                    console.error(err);
+                    setLoading(false);
+                });
             };
 
             if (loading) {
-                return <div className="text-center py-12">Caricamento aziende...</div>;
-            }
-
-            if (selectedCompany) {
-                return (
-                    <div>
-                        <button
-                            onClick={() => setSelectedCompany(null)}
-                            className="mb-4 text-blue-600 hover:underline"
-                        >
-                            ← Torna alla lista
-                        </button>
-                        <CompanyDetail 
-                            company={selectedCompany} 
-                            token={token}
-                            onCalculateScore={calculateScore}
-                            calculatingScore={calculatingScore}
-                        />
-                    </div>
-                );
+                return <div className="p-8">Caricamento...</div>;
             }
 
             return (
-                <div>
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-3xl font-bold">Le Tue Aziende</h1>
-                        <span className="text-gray-600">{companies.length} aziende totali</span>
-                    </div>
+                <div className="p-8">
+                    <h1 className="text-3xl font-bold mb-8">Le Tue Aziende</h1>
 
                     {companies.length === 0 ? (
-                        <div className="bg-white rounded-lg shadow p-12 text-center">
+                        <div className="text-center py-12">
                             <div className="text-6xl mb-4">🏢</div>
-                            <h3 className="text-xl font-semibold mb-2">Nessuna azienda ancora</h3>
+                            <h2 className="text-xl font-semibold mb-2">Nessuna azienda ancora</h2>
                             <p className="text-gray-600">Crea la tua prima azienda per iniziare!</p>
                         </div>
                     ) : (
-                        <div className="grid gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {companies.map(company => (
-                                <div
-                                    key={company._id}
-                                    onClick={() => setSelectedCompany(company)}
-                                    className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer"
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="text-xl font-semibold">{company.ragioneSociale}</h3>
-                                            <p className="text-gray-600">P.IVA: {company.partitaIva}</p>
-                                            {company.settore && (
-                                                <p className="text-sm text-gray-500 mt-1">
-                                                    Settore: {company.settore}
-                                                </p>
-                                            )}
+                                <div key={company._id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                                    <h3 className="font-bold text-lg mb-2">{company.ragione_sociale}</h3>
+                                    <p className="text-sm text-gray-600 mb-4">P.IVA: {company.partita_iva}</p>
+                                    {company.score_creditizio?.rating && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                                                {company.score_creditizio.rating}
+                                            </span>
+                                            <span className="text-gray-600">{company.score_creditizio.score}/100</span>
                                         </div>
-                                        <div className="text-right">
-                                            {company.score ? (
-                                                <>
-                                                    <div className="text-3xl font-bold text-blue-600">
-                                                        {company.score.finalScore}
-                                                    </div>
-                                                    <div className="text-sm text-gray-600">
-                                                        {company.score.rating}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        calculateScore(company._id);
-                                                    }}
-                                                    disabled={calculatingScore === company._id}
-                                                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-                                                >
-                                                    {calculatingScore === company._id ? 'Calcolo...' : 'Calcola Score'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
+                                    )}
+                                    <p className="text-xs text-gray-500">{company.settore}</p>
                                 </div>
                             ))}
                         </div>
@@ -438,136 +391,16 @@
             );
         }
 
-        // Company Detail Component
-        function CompanyDetail({ company, token, onCalculateScore, calculatingScore }) {
-            const getRatingColor = (rating) => {
-                const colors = {
-                    'AAA': 'text-green-600',
-                    'AA': 'text-green-500',
-                    'A': 'text-blue-600',
-                    'BBB': 'text-yellow-600',
-                    'BB': 'text-orange-600',
-                    'B': 'text-red-600',
-                    'CCC': 'text-red-700',
-                    'CC': 'text-red-800',
-                    'C': 'text-red-900'
-                };
-                return colors[rating] || 'text-gray-600';
-            };
-
-            return (
-                <div className="space-y-6">
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h2 className="text-2xl font-bold mb-4">{company.ragioneSociale}</h2>
-                        
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-sm text-gray-600">Partita IVA</p>
-                                <p className="font-semibold">{company.partitaIva}</p>
-                            </div>
-                            {company.codiceFiscale && (
-                                <div>
-                                    <p className="text-sm text-gray-600">Codice Fiscale</p>
-                                    <p className="font-semibold">{company.codiceFiscale}</p>
-                                </div>
-                            )}
-                            {company.settore && (
-                                <div>
-                                    <p className="text-sm text-gray-600">Settore</p>
-                                    <p className="font-semibold">{company.settore}</p>
-                                </div>
-                            )}
-                            {company.formaGiuridica && (
-                                <div>
-                                    <p className="text-sm text-gray-600">Forma Giuridica</p>
-                                    <p className="font-semibold">{company.formaGiuridica}</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {company.indirizzo && (
-                            <div className="mt-4">
-                                <p className="text-sm text-gray-600">Indirizzo</p>
-                                <p className="font-semibold">
-                                    {company.indirizzo.via}, {company.indirizzo.cap} {company.indirizzo.citta} ({company.indirizzo.provincia})
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    {company.score ? (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold mb-4">Rating Creditizio</h3>
-                            
-                            <div className="text-center mb-6">
-                                <div className={`text-6xl font-bold ${getRatingColor(company.score.rating)}`}>
-                                    {company.score.rating}
-                                </div>
-                                <div className="text-3xl font-bold text-gray-700 mt-2">
-                                    Score: {company.score.finalScore}
-                                </div>
-                                <p className="text-gray-600 mt-2">{company.score.riskLevel}</p>
-                            </div>
-
-                            {company.score.components && (
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold mb-2">Componenti Score:</h4>
-                                    {Object.entries(company.score.components).map(([key, value]) => (
-                                        <div key={key} className="flex justify-between items-center">
-                                            <span className="text-gray-700 capitalize">
-                                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                                            </span>
-                                            <span className="font-semibold">{value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => onCalculateScore(company._id)}
-                                disabled={calculatingScore === company._id}
-                                className="w-full mt-4 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-                            >
-                                {calculatingScore === company._id ? 'Ricalcolo...' : 'Ricalcola Score'}
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                            <p className="text-yellow-800 mb-4">Score non ancora calcolato per questa azienda</p>
-                            <button
-                                onClick={() => onCalculateScore(company._id)}
-                                disabled={calculatingScore === company._id}
-                                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-                            >
-                                {calculatingScore === company._id ? 'Calcolo in corso...' : 'Calcola Score Ora'}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        // New Company Form Component
+        // NewCompany Component
         function NewCompany({ token, setView }) {
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
             const [formData, setFormData] = useState({
-                ragioneSociale: '',
-                partitaIva: '',
-                codiceFiscale: '',
-                settore: '',
-                formaGiuridica: '',
-                indirizzo: {
-                    via: '',
-                    cap: '',
-                    citta: '',
-                    provincia: ''
-                },
-                datiFinanziari: {
-                    fatturato: '',
-                    patrimonio: '',
-                    debiti: ''
-                }
+                ragione_sociale: '',
+                partita_iva: '',
+                codice_fiscale: '',
+                forma_giuridica: 'SRL',
+                settore: ''
             });
 
             const handleSubmit = async (e) => {
@@ -576,202 +409,300 @@
                 setError('');
 
                 try {
+                    const userId = localStorage.getItem('userId');
                     const response = await fetch(`${API_BASE}/companies`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify(formData)
+                        body: JSON.stringify({ ...formData, userId })
                     });
 
                     const data = await response.json();
 
                     if (!response.ok) {
-                        throw new Error(data.message || 'Errore nella creazione dell\'azienda');
+                        throw new Error(data.message || 'Errore nella creazione');
                     }
 
                     alert('Azienda creata con successo!');
                     setView('companies');
                 } catch (err) {
                     setError(err.message);
-                } finally {
                     setLoading(false);
                 }
             };
 
             return (
-                <div>
-                    <h1 className="text-3xl font-bold mb-6">Nuova Azienda</h1>
+                <div className="p-8 max-w-2xl mx-auto">
+                    <h1 className="text-3xl font-bold mb-8">Nuova Azienda</h1>
 
                     {error && (
-                        <div className="bg-red-50 text-red-600 p-4 rounded mb-6">
+                        <div className="bg-red-50 text-red-800 p-4 rounded mb-6">
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Dati Generali</h3>
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Ragione Sociale *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.ragioneSociale}
-                                        onChange={(e) => setFormData({...formData, ragioneSociale: e.target.value})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Partita IVA *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.partitaIva}
-                                        onChange={(e) => setFormData({...formData, partitaIva: e.target.value})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                        required
-                                        maxLength="11"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Codice Fiscale</label>
-                                    <input
-                                        type="text"
-                                        value={formData.codiceFiscale}
-                                        onChange={(e) => setFormData({...formData, codiceFiscale: e.target.value})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Settore</label>
-                                    <input
-                                        type="text"
-                                        value={formData.settore}
-                                        onChange={(e) => setFormData({...formData, settore: e.target.value})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Forma Giuridica</label>
-                                    <select
-                                        value={formData.formaGiuridica}
-                                        onChange={(e) => setFormData({...formData, formaGiuridica: e.target.value})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    >
-                                        <option value="">Seleziona...</option>
-                                        <option value="SRL">S.R.L.</option>
-                                        <option value="SPA">S.P.A.</option>
-                                        <option value="SRLS">S.R.L.S.</option>
-                                        <option value="SNC">S.N.C.</option>
-                                        <option value="SAS">S.A.S.</option>
-                                        <option value="DITTA_INDIVIDUALE">Ditta Individuale</option>
-                                    </select>
-                                </div>
-                            </div>
+                            <label className="block text-sm font-semibold mb-2">Ragione Sociale *</label>
+                            <input
+                                type="text"
+                                value={formData.ragione_sociale}
+                                onChange={(e) => setFormData({...formData, ragione_sociale: e.target.value})}
+                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Indirizzo</h3>
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium mb-1">Via</label>
-                                    <input
-                                        type="text"
-                                        value={formData.indirizzo.via}
-                                        onChange={(e) => setFormData({...formData, indirizzo: {...formData.indirizzo, via: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">CAP</label>
-                                    <input
-                                        type="text"
-                                        value={formData.indirizzo.cap}
-                                        onChange={(e) => setFormData({...formData, indirizzo: {...formData.indirizzo, cap: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                        maxLength="5"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Città</label>
-                                    <input
-                                        type="text"
-                                        value={formData.indirizzo.citta}
-                                        onChange={(e) => setFormData({...formData, indirizzo: {...formData.indirizzo, citta: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Provincia</label>
-                                    <input
-                                        type="text"
-                                        value={formData.indirizzo.provincia}
-                                        onChange={(e) => setFormData({...formData, indirizzo: {...formData.indirizzo, provincia: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                        maxLength="2"
-                                    />
-                                </div>
-                            </div>
+                            <label className="block text-sm font-semibold mb-2">Partita IVA *</label>
+                            <input
+                                type="text"
+                                value={formData.partita_iva}
+                                onChange={(e) => setFormData({...formData, partita_iva: e.target.value.replace(/\D/g, '').slice(0, 11)})}
+                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                maxLength="11"
+                                required
+                            />
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Dati Finanziari (opzionali)</h3>
-                            <div className="grid md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Fatturato (€)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.datiFinanziari.fatturato}
-                                        onChange={(e) => setFormData({...formData, datiFinanziari: {...formData.datiFinanziari, fatturato: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Patrimonio (€)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.datiFinanziari.patrimonio}
-                                        onChange={(e) => setFormData({...formData, datiFinanziari: {...formData.datiFinanziari, patrimonio: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Debiti (€)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.datiFinanziari.debiti}
-                                        onChange={(e) => setFormData({...formData, datiFinanziari: {...formData.datiFinanziari, debiti: e.target.value}})}
-                                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-                            </div>
+                            <label className="block text-sm font-semibold mb-2">Codice Fiscale</label>
+                            <input
+                                type="text"
+                                value={formData.codice_fiscale}
+                                onChange={(e) => setFormData({...formData, codice_fiscale: e.target.value})}
+                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                            />
                         </div>
 
-                        <div className="flex gap-4">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-1 bg-blue-600 text-white py-3 rounded hover:bg-blue-700 disabled:bg-gray-400 font-semibold"
+                        <div>
+                            <label className="block text-sm font-semibold mb-2">Forma Giuridica *</label>
+                            <select
+                                value={formData.forma_giuridica}
+                                onChange={(e) => setFormData({...formData, forma_giuridica: e.target.value})}
+                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                required
                             >
-                                {loading ? 'Creazione in corso...' : 'Crea Azienda'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setView('companies')}
-                                className="px-6 py-3 border rounded hover:bg-gray-50"
-                            >
-                                Annulla
-                            </button>
+                                <option value="SRL">S.R.L.</option>
+                                <option value="SPA">S.P.A.</option>
+                                <option value="SRLS">S.R.L.S.</option>
+                                <option value="SNC">S.N.C.</option>
+                                <option value="SAS">S.A.S.</option>
+                                <option value="DITTA_INDIVIDUALE">Ditta Individuale</option>
+                            </select>
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold mb-2">Settore *</label>
+                            <input
+                                type="text"
+                                value={formData.settore}
+                                onChange={(e) => setFormData({...formData, settore: e.target.value})}
+                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 transition"
+                        >
+                            {loading ? 'Creazione...' : 'Crea Azienda'}
+                        </button>
                     </form>
                 </div>
             );
         }
 
+        // ImportPIVA Component
+        function ImportPIVA({ token, setView }) {
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState(false);
+            const [formData, setFormData] = useState({
+                openapi_token: '',
+                partita_iva: ''
+            });
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+
+                if (formData.partita_iva.length !== 11) {
+                    setError('P.IVA deve essere di 11 cifre');
+                    return;
+                }
+
+                if (!formData.openapi_token.trim()) {
+                    setError('Token OpenAPI.com obbligatorio');
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+
+                try {
+                    const userId = localStorage.getItem('userId');
+
+                    const response = await fetch(`${API_BASE}/companies/import-piva`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            partita_iva: formData.partita_iva,
+                            openapi_token: formData.openapi_token,
+                            userId: userId
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            throw new Error('Token OpenAPI.com non valido o scaduto');
+                        } else if (response.status === 404) {
+                            throw new Error('P.IVA non trovata nel Registro Imprese');
+                        } else if (response.status === 409) {
+                            throw new Error('Azienda già presente nel database');
+                        }
+                        throw new Error(data.message || 'Errore durante l\'importazione');
+                    }
+
+                    setSuccess(true);
+                    setTimeout(() => {
+                        setView('companies');
+                    }, 2000);
+
+                } catch (err) {
+                    setError(err.message);
+                    setLoading(false);
+                }
+            };
+
+            if (success) {
+                return (
+                    <div className="p-8 max-w-2xl mx-auto">
+                        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <div className="text-4xl">✅</div>
+                            </div>
+                            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                                🎉 Azienda Importata con Successo!
+                            </h2>
+                            <p className="text-gray-600 mb-6">
+                                Tutti i dati sono stati recuperati da OpenAPI.com
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="p-8 max-w-2xl mx-auto">
+                    <button
+                        onClick={() => setView('companies')}
+                        className="text-blue-600 hover:text-blue-700 mb-4 flex items-center"
+                    >
+                        ← Torna alle Aziende
+                    </button>
+
+                    <h1 className="text-4xl font-bold mb-2">📥 Import da Partita IVA</h1>
+                    <p className="text-gray-600 mb-8">
+                        Recupera automaticamente tutti i dati aziendali da OpenAPI.com
+                    </p>
+
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-8">
+                        <div className="flex items-start gap-3">
+                            <div className="text-2xl">💡</div>
+                            <div>
+                                <h3 className="font-semibold text-blue-900 mb-2">Come funziona</h3>
+                                <ul className="text-sm text-blue-800 space-y-1">
+                                    <li>✅ Inserisci il tuo token OpenAPI.com</li>
+                                    <li>✅ Inserisci la Partita IVA (11 cifre)</li>
+                                    <li>✅ Clicca "Importa" - tutti i dati vengono recuperati automaticamente!</li>
+                                    <li>✅ L'azienda viene salvata completa di: ragione sociale, indirizzo, settore, dati finanziari</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-xl p-8">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    🔐 Token OpenAPI.com *
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.openapi_token}
+                                    onChange={(e) => setFormData({...formData, openapi_token: e.target.value})}
+                                    placeholder="Inserisci il Bearer Token..."
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    required
+                                    disabled={loading}
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Genera il token su <a href="https://console.openapi.com/oauth" target="_blank" className="text-blue-600 hover:underline">console.openapi.com/oauth</a>
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    🏢 Partita IVA *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.partita_iva}
+                                    onChange={(e) => setFormData({...formData, partita_iva: e.target.value.replace(/\D/g, '').slice(0, 11)})}
+                                    placeholder="01234567890"
+                                    maxLength="11"
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-lg font-mono tracking-wider"
+                                    required
+                                    disabled={loading}
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                    11 cifre - Es: 12345678901
+                                </p>
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 text-red-800">
+                                        <span>⚠️</span>
+                                        <span className="font-semibold">{error}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading || formData.partita_iva.length !== 11}
+                                className={`w-full py-4 rounded-lg font-bold text-white text-lg transition-all ${
+                                    loading || formData.partita_iva.length !== 11
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
+                            >
+                                {loading ? '⏳ Importazione in corso...' : '📥 Importa Azienda da OpenAPI.com'}
+                            </button>
+                        </form>
+                    </div>
+
+                    <div className="mt-8 text-center text-sm text-gray-600">
+                        <p>💡 <strong>Suggerimento:</strong> Assicurati che il token sia valido e attivo</p>
+                        <p className="mt-2">I dati vengono recuperati dal <strong>Registro Imprese Italiano</strong> tramite OpenAPI.com</p>
+                    </div>
+                </div>
+            );
+        }
+
         // Render App
-        ReactDOM.render(<App />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
