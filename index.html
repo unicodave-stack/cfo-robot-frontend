@@ -17,6 +17,54 @@
         const API_BASE = 'https://cfo-robot-backend.onrender.com/api';
 
         // ============================================
+        // ERROR BOUNDARY - CATTURA TUTTI GLI ERRORI
+        // ============================================
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null, errorInfo: null };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error('ErrorBoundary caught:', error, errorInfo);
+                this.state = { hasError: true, error, errorInfo };
+                this.forceUpdate();
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="p-8 bg-red-50">
+                            <div className="bg-red-100 border-2 border-red-400 text-red-900 px-6 py-8 rounded-lg max-w-4xl mx-auto">
+                                <h1 className="text-3xl font-bold mb-4">⚠️ ERRORE RILEVATO!</h1>
+                                <div className="bg-white p-4 rounded mb-4 font-mono text-sm overflow-auto">
+                                    <strong>Errore:</strong>
+                                    <pre className="mt-2">{this.state.error?.toString()}</pre>
+                                </div>
+                                <div className="bg-white p-4 rounded mb-4 font-mono text-xs overflow-auto max-h-64">
+                                    <strong>Stack:</strong>
+                                    <pre className="mt-2">{this.state.errorInfo?.componentStack}</pre>
+                                </div>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700"
+                                >
+                                    Ricarica Pagina
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                return this.props.children;
+            }
+        }
+
+        // ============================================
         // LOGIN COMPONENT
         // ============================================
         function Login({ setToken, setUser }) {
@@ -942,7 +990,14 @@
                 setToken(null);
                 setUser(null);
                 setView('dashboard');
+                setSelectedCompany(null);
             };
+
+            // DEBUG
+            console.log('[App] Current state:', { view, hasSelectedCompany: !!selectedCompany });
+            if (selectedCompany) {
+                console.log('[App] Selected company:', selectedCompany);
+            }
 
             if (!token || !user) {
                 return <Login setToken={setToken} setUser={setUser} />;
@@ -950,6 +1005,16 @@
 
             return (
                 <div className="flex h-screen bg-gray-100">
+                    {/* DEBUG BOX - Rimuovi dopo il fix */}
+                    <div className="fixed top-0 right-0 bg-yellow-100 border border-yellow-400 p-2 m-2 text-xs z-50 max-w-xs">
+                        <strong>DEBUG:</strong>
+                        <div>View: {view}</div>
+                        <div>Has Company: {selectedCompany ? 'YES' : 'NO'}</div>
+                        {selectedCompany && (
+                            <div className="truncate">ID: {selectedCompany._id}</div>
+                        )}
+                    </div>
+
                     <Sidebar view={view} setView={setView} logout={logout} user={user} />
                     <main className="flex-1 overflow-auto">
                         {view === 'dashboard' && <Dashboard token={token} />}
@@ -961,12 +1026,14 @@
                             />
                         )}
                         {view === 'companies' && selectedCompany && (
-                            <CompanyDetail 
-                                company={selectedCompany}
-                                token={token}
-                                setView={setView}
-                                setSelectedCompany={setSelectedCompany}
-                            />
+                            <ErrorBoundary>
+                                <CompanyDetail 
+                                    company={selectedCompany}
+                                    token={token}
+                                    setView={setView}
+                                    setSelectedCompany={setSelectedCompany}
+                                />
+                            </ErrorBoundary>
                         )}
                         {view === 'new-company' && <NewCompany token={token} setView={setView} />}
                         {view === 'import-piva' && <ImportPIVA token={token} setView={setView} />}
@@ -979,7 +1046,11 @@
         // RENDER APP
         // ============================================
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
     </script>
 </body>
 </html>
