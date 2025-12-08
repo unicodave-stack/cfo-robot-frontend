@@ -3,236 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CFO Robot v4.0 - Dashboard</title>
+    <title>CFO Robot v4.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-    </style>
 </head>
-<body class="bg-gray-50">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-
-        // Backend API Configuration
         const API_BASE = 'https://cfo-robot-backend.onrender.com/api';
 
-        // Main App Component
-        function App() {
-            const [user, setUser] = useState(null);
-            const [token, setToken] = useState(localStorage.getItem('token'));
-            const [view, setView] = useState('dashboard');
-
-            useEffect(() => {
-                if (token) {
-                    // Validate token on load
-                    fetch(`${API_BASE}/auth/me`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.user) {
-                            setUser(data.user);
-                        } else {
-                            logout();
-                        }
-                    })
-                    .catch(() => logout());
-                }
-            }, [token]);
-
-            const login = (userData, userToken) => {
-    setUser(userData);
-    setToken(userToken);
-    localStorage.setItem('token', userToken);
-    localStorage.setItem('userId', userData.id);
-            };
-
-            const logout = () => {
-                setUser(null);
-                setToken(null);
-                localStorage.removeItem('token');
-                setView('dashboard');
-            };
-
-            if (!token || !user) {
-                return <AuthScreen onLogin={login} />;
-            }
-
-            return (
-                <div className="flex h-screen bg-gray-100">
-                    <Sidebar view={view} setView={setView} logout={logout} user={user} />
-                    <main className="flex-1 overflow-auto">
-                        {view === 'dashboard' && <Dashboard token={token} />}
-                        {view === 'companies' && <Companies token={token} />}
-                        {view === 'new-company' && <NewCompany token={token} setView={setView} />}
-                        {view === 'import-piva' && <ImportPIVA token={token} setView={setView} />}
-                    </main>
-                </div>
-            );
-        }
-
-        // Sidebar Component
-        function Sidebar({ view, setView, logout, user }) {
-            return (
-                <aside className="w-64 bg-blue-900 text-white p-6">
-                    <div className="mb-8">
-                        <h1 className="text-2xl font-bold">CFO Robot</h1>
-                        <p className="text-blue-300 text-sm">v4.0 Production</p>
-                    </div>
-
-                    <nav className="space-y-2">
-                        <button
-                            onClick={() => setView('dashboard')}
-                            className={`w-full text-left px-4 py-2 rounded ${view === 'dashboard' ? 'bg-blue-800' : 'hover:bg-blue-800'}`}
-                        >
-                            📊 Dashboard
-                        </button>
-                        <button
-                            onClick={() => setView('companies')}
-                            className={`w-full text-left px-4 py-2 rounded ${view === 'companies' ? 'bg-blue-800' : 'hover:bg-blue-800'}`}
-                        >
-                            🏢 Aziende
-                        </button>
-                        <button
-                            onClick={() => setView('new-company')}
-                            className={`w-full text-left px-4 py-2 rounded ${view === 'new-company' ? 'bg-blue-800' : 'hover:bg-blue-800'}`}
-                        >
-                            ➕ Nuova Azienda
-                        </button>
-                        <button
-                            onClick={() => setView('import-piva')}
-                            className={`w-full text-left px-4 py-2 rounded ${view === 'import-piva' ? 'bg-blue-800' : 'hover:bg-blue-800'}`}
-                        >
-                            📥 Import da P.IVA
-                        </button>
-                    </nav>
-
-                    <div className="mt-auto pt-8 border-t border-blue-800">
-                        <p className="text-sm text-blue-300 mb-4">
-                            {user.name} {user.cognome}
-                        </p>
-                        <button
-                            onClick={logout}
-                            className="text-sm text-blue-300 hover:text-white"
-                        >
-                            Logout →
-                        </button>
-                    </div>
-                </aside>
-            );
-        }
-
-        // Auth Screen Component
-        function AuthScreen({ onLogin }) {
-            const [isLogin, setIsLogin] = useState(true);
-            const [loading, setLoading] = useState(false);
+        // ============================================
+        // LOGIN COMPONENT
+        // ============================================
+        function Login({ setToken, setUser }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [isRegister, setIsRegister] = useState(false);
             const [error, setError] = useState('');
-            const [formData, setFormData] = useState({
-                email: '',
-                password: '',
-                name: '',
-                cognome: ''
-            });
+            const [loading, setLoading] = useState(false);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                setLoading(true);
                 setError('');
+                setLoading(true);
 
                 try {
-                    const endpoint = isLogin ? '/auth/login' : '/auth/register';
+                    const endpoint = isRegister ? '/auth/register' : '/auth/login';
                     const response = await fetch(`${API_BASE}${endpoint}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(formData)
+                        body: JSON.stringify({ email, password })
                     });
 
                     const data = await response.json();
 
-                    if (!response.ok) {
-                        throw new Error(data.message || 'Errore durante l\'autenticazione');
+                    if (data.success) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('userId', data.user.id);
+                        setToken(data.token);
+                        setUser(data.user);
+                    } else {
+                        setError(data.error || 'Errore durante l\'autenticazione');
                     }
-
-                    onLogin(data.user, data.token);
                 } catch (err) {
-                    setError(err.message);
+                    setError('Errore di connessione al server');
                 } finally {
                     setLoading(false);
                 }
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-900">
-                    <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-                        <h2 className="text-3xl font-bold text-center mb-6">CFO Robot v4.0</h2>
-                        <p className="text-gray-600 text-center mb-6">
-                            {isLogin ? 'Accedi al tuo account' : 'Crea un nuovo account'}
-                        </p>
+                <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                        <h1 className="text-3xl font-bold mb-2 text-center">CFO Robot v4.0</h1>
+                        <p className="text-gray-600 text-center mb-8">Il tuo assistente finanziario intelligente</p>
 
                         {error && (
-                            <div className="bg-red-50 text-red-800 p-3 rounded mb-4 text-sm">
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                                 {error}
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            {!isLogin && (
-                                <>
-                                    <input
-                                        type="text"
-                                        placeholder="Nome"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                        className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                        required
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Cognome"
-                                        value={formData.cognome}
-                                        onChange={(e) => setFormData({...formData, cognome: e.target.value})}
-                                        className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                        required
-                                    />
-                                </>
-                            )}
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                required
-                            />
-                            <input
-                                type="password"
-                                placeholder="Password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                                required
-                            />
+                        <form onSubmit={handleSubmit}>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-gray-700 mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 transition"
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
                             >
-                                {loading ? 'Caricamento...' : (isLogin ? 'Accedi' : 'Registrati')}
+                                {loading ? 'Caricamento...' : (isRegister ? 'Registrati' : 'Accedi')}
                             </button>
                         </form>
 
-                        <p className="text-center mt-4 text-sm text-gray-600">
-                            {isLogin ? 'Non hai un account?' : 'Hai già un account?'}
+                        <p className="text-center mt-4 text-gray-600">
+                            {isRegister ? 'Hai già un account?' : 'Non hai un account?'}
                             <button
-                                onClick={() => setIsLogin(!isLogin)}
-                                className="text-blue-600 ml-1 hover:underline"
+                                onClick={() => setIsRegister(!isRegister)}
+                                className="text-blue-600 ml-2 font-semibold hover:underline"
                             >
-                                {isLogin ? 'Registrati' : 'Accedi'}
+                                {isRegister ? 'Accedi' : 'Registrati'}
                             </button>
                         </p>
                     </div>
@@ -240,97 +114,147 @@
             );
         }
 
-        // Dashboard Component
+        // ============================================
+        // SIDEBAR COMPONENT
+        // ============================================
+        function Sidebar({ view, setView, logout, user }) {
+            const menuItems = [
+                { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+                { id: 'companies', icon: '🏢', label: 'Aziende' },
+                { id: 'new-company', icon: '➕', label: 'Nuova Azienda' },
+                { id: 'import-piva', icon: '📥', label: 'Import P.IVA' }
+            ];
+
+            return (
+                <div className="w-64 bg-gray-900 text-white flex flex-col">
+                    <div className="p-6 border-b border-gray-800">
+                        <h1 className="text-2xl font-bold">CFO Robot</h1>
+                        <p className="text-sm text-gray-400 mt-1">v4.0</p>
+                    </div>
+
+                    <nav className="flex-1 p-4">
+                        {menuItems.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setView(item.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition ${
+                                    view === item.id
+                                        ? 'bg-blue-600 text-white'
+                                        : 'text-gray-300 hover:bg-gray-800'
+                                }`}
+                            >
+                                <span className="text-xl">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+
+                    <div className="p-4 border-t border-gray-800">
+                        <div className="mb-3">
+                            <p className="text-sm text-gray-400">Utente</p>
+                            <p className="font-semibold">{user?.email}</p>
+                        </div>
+                        <button
+                            onClick={logout}
+                            className="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // DASHBOARD COMPONENT
+        // ============================================
         function Dashboard({ token }) {
-            const [stats, setStats] = useState(null);
-            const [loading, setLoading] = useState(true);
+            const [stats, setStats] = useState({
+                totalCompanies: 0,
+                avgScore: 0,
+                highRiskCompanies: 0
+            });
 
             useEffect(() => {
-                fetch(`${API_BASE}/companies`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-                .then(res => res.json())
-                .then(data => {
+                loadStats();
+            }, []);
+
+            const loadStats = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/companies`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await response.json();
+
                     if (data.success) {
-                        const companies = data.companies || [];
-                        const withScore = companies.filter(c => c.score_creditizio?.score > 0);
-                        const avgScore = withScore.length > 0
-                            ? Math.round(withScore.reduce((sum, c) => sum + c.score_creditizio.score, 0) / withScore.length)
-                            : 0;
+                        const companies = data.companies;
+                        const totalCompanies = companies.length;
+                        const avgScore = companies.reduce((sum, c) => sum + (c.score_creditizio?.score || 0), 0) / totalCompanies || 0;
+                        const highRiskCompanies = companies.filter(c => (c.score_creditizio?.score || 0) < 50).length;
 
-                        setStats({
-                            total: companies.length,
-                            withScore: withScore.length,
-                            avgScore: avgScore
-                        });
+                        setStats({ totalCompanies, avgScore: avgScore.toFixed(0), highRiskCompanies });
                     }
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.error(err);
-                    setLoading(false);
-                });
-            }, [token]);
-
-            if (loading) {
-                return (
-                    <div className="flex items-center justify-center h-screen">
-                        <div className="text-xl">Caricamento...</div>
-                    </div>
-                );
-            }
+                } catch (err) {
+                    console.error('Error loading stats:', err);
+                }
+            };
 
             return (
                 <div className="p-8">
                     <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div className="bg-white p-6 rounded-lg shadow">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white rounded-xl shadow p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-gray-600 text-sm">Aziende Totali</p>
-                                    <p className="text-3xl font-bold text-blue-600">{stats?.total || 0}</p>
+                                    <p className="text-gray-600 mb-2">Aziende Totali</p>
+                                    <p className="text-4xl font-bold text-blue-600">{stats.totalCompanies}</p>
                                 </div>
-                                <div className="text-4xl">🏢</div>
+                                <div className="text-5xl">🏢</div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-lg shadow">
+                        <div className="bg-white rounded-xl shadow p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-gray-600 text-sm">Con Score</p>
-                                    <p className="text-3xl font-bold text-green-600">{stats?.withScore || 0}</p>
+                                    <p className="text-gray-600 mb-2">Score Medio</p>
+                                    <p className="text-4xl font-bold text-green-600">{stats.avgScore}</p>
                                 </div>
-                                <div className="text-4xl">✅</div>
+                                <div className="text-5xl">📊</div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-lg shadow">
+                        <div className="bg-white rounded-xl shadow p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-gray-600 text-sm">Score Medio</p>
-                                    <p className="text-3xl font-bold text-purple-600">{stats?.avgScore || 0}</p>
+                                    <p className="text-gray-600 mb-2">Alto Rischio</p>
+                                    <p className="text-4xl font-bold text-red-600">{stats.highRiskCompanies}</p>
                                 </div>
-                                <div className="text-4xl">📊</div>
+                                <div className="text-5xl">⚠️</div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                        <div className="flex items-center gap-3">
-                            <div className="text-3xl">🚀</div>
-                            <div>
-                                <h3 className="font-bold text-lg text-blue-900">Sistema Operativo!</h3>
-                                <p className="text-blue-700">Backend API connesso e funzionante. Tutte le funzionalità core sono attive.</p>
-                            </div>
-                        </div>
+                    <div className="mt-8 bg-white rounded-xl shadow p-6">
+                        <h2 className="text-2xl font-bold mb-4">Benvenuto in CFO Robot v4.0</h2>
+                        <p className="text-gray-700 mb-4">
+                            Sistema avanzato di analisi creditizia e gestione aziendale.
+                        </p>
+                        <ul className="space-y-2 text-gray-600">
+                            <li>✅ Gestione aziende completa</li>
+                            <li>✅ Import automatico da Partita IVA</li>
+                            <li>✅ Calcolo score creditizio</li>
+                            <li>✅ Analisi rischio default</li>
+                        </ul>
                     </div>
                 </div>
             );
         }
 
-        // Companies Component
-        function Companies({ token }) {
+        // ============================================
+        // COMPANIES COMPONENT
+        // ============================================
+        function Companies({ token, setView, setSelectedCompany }) {
             const [companies, setCompanies] = useState([]);
             const [loading, setLoading] = useState(true);
 
@@ -338,25 +262,29 @@
                 loadCompanies();
             }, []);
 
-            const loadCompanies = () => {
-                fetch(`${API_BASE}/companies`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-                .then(res => res.json())
-                .then(data => {
+            const loadCompanies = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/companies`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await response.json();
+
                     if (data.success) {
-                        setCompanies(data.companies || []);
+                        setCompanies(data.companies);
                     }
+                } catch (err) {
+                    console.error('Error loading companies:', err);
+                } finally {
                     setLoading(false);
-                })
-                .catch(err => {
-                    console.error(err);
-                    setLoading(false);
-                });
+                }
             };
 
             if (loading) {
-                return <div className="p-8">Caricamento...</div>;
+                return (
+                    <div className="p-8 flex items-center justify-center">
+                        <div className="text-2xl">Caricamento...</div>
+                    </div>
+                );
             }
 
             return (
@@ -367,12 +295,22 @@
                         <div className="text-center py-12">
                             <div className="text-6xl mb-4">🏢</div>
                             <h2 className="text-xl font-semibold mb-2">Nessuna azienda ancora</h2>
-                            <p className="text-gray-600">Crea la tua prima azienda per iniziare!</p>
+                            <p className="text-gray-600 mb-6">Crea la tua prima azienda per iniziare!</p>
+                            <button
+                                onClick={() => setView('new-company')}
+                                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                            >
+                                Crea Azienda
+                            </button>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {companies.map(company => (
-                                <div key={company._id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                                <div 
+                                    key={company._id} 
+                                    onClick={() => setSelectedCompany(company)}
+                                    className="bg-white rounded-lg shadow p-6 hover:shadow-xl transition cursor-pointer"
+                                >
                                     <h3 className="font-bold text-lg mb-2">{company.ragione_sociale}</h3>
                                     <p className="text-sm text-gray-600 mb-4">P.IVA: {company.partita_iva}</p>
                                     {company.score_creditizio?.rating && (
@@ -392,17 +330,305 @@
             );
         }
 
-        // NewCompany Component
-        function NewCompany({ token, setView }) {
+        // ============================================
+        // COMPANY DETAIL COMPONENT
+        // ============================================
+        function CompanyDetail({ company, token, setView, setSelectedCompany }) {
             const [loading, setLoading] = useState(false);
-            const [error, setError] = useState('');
+            const [score, setScore] = useState(null);
+
+            useEffect(() => {
+                calculateScore();
+            }, [company._id]);
+
+            const calculateScore = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/scoring/${company._id}/calculate`, {
+                        method: 'POST',
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        setScore(data.scoring);
+                    }
+                } catch (err) {
+                    console.error('Error calculating score:', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const formatCurrency = (value) => {
+                if (!value || value === 0) return '€ 0';
+                return '€ ' + value.toLocaleString('it-IT');
+            };
+
+            const formatDate = (date) => {
+                if (!date) return 'N/A';
+                return new Date(date).toLocaleDateString('it-IT');
+            };
+
+            const getScoreColor = (score) => {
+                if (score >= 80) return 'text-green-600 bg-green-100';
+                if (score >= 60) return 'text-blue-600 bg-blue-100';
+                if (score >= 40) return 'text-yellow-600 bg-yellow-100';
+                return 'text-red-600 bg-red-100';
+            };
+
+            const getRatingColor = (rating) => {
+                if (rating === 'AAA' || rating === 'AA') return 'bg-green-500';
+                if (rating === 'A' || rating === 'BBB') return 'bg-blue-500';
+                if (rating === 'BB' || rating === 'B') return 'bg-yellow-500';
+                return 'bg-red-500';
+            };
+
+            return (
+                <div className="p-8 max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                        <button
+                            onClick={() => {
+                                setSelectedCompany(null);
+                                setView('companies');
+                            }}
+                            className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
+                        >
+                            ← Torna alle Aziende
+                        </button>
+                        
+                        {loading && (
+                            <span className="text-sm text-gray-500">Calcolo score in corso...</span>
+                        )}
+                    </div>
+
+                    <h1 className="text-4xl font-bold mb-2">{company.ragione_sociale}</h1>
+                    <p className="text-gray-600 mb-8">P.IVA: {company.partita_iva}</p>
+
+                    {score && (
+                        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+                            <h2 className="text-2xl font-bold mb-6">Score Creditizio</h2>
+                            <div className="flex items-center gap-8">
+                                <div className="flex-1">
+                                    <div className="flex items-baseline gap-4 mb-4">
+                                        <span className={`text-6xl font-bold ${getScoreColor(score.score)} px-6 py-3 rounded-xl`}>
+                                            {score.score}
+                                        </span>
+                                        <span className="text-gray-600">/100</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`${getRatingColor(score.rating)} text-white px-4 py-2 rounded-lg font-bold text-xl`}>
+                                            {score.rating}
+                                        </span>
+                                        <span className="text-gray-600 text-lg">{score.descrizione}</span>
+                                    </div>
+                                </div>
+                                
+                                {score.rischio_default && (
+                                    <div className="bg-gray-50 p-6 rounded-xl">
+                                        <div className="text-sm text-gray-600 mb-2">Rischio Default</div>
+                                        <div className="text-3xl font-bold text-gray-800">
+                                            {score.rischio_default}%
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl shadow p-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                🏢 Dati Anagrafici
+                            </h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <span className="text-sm text-gray-600">Ragione Sociale</span>
+                                    <p className="font-semibold">{company.ragione_sociale}</p>
+                                </div>
+                                <div>
+                                    <span className="text-sm text-gray-600">P.IVA</span>
+                                    <p className="font-semibold font-mono">{company.partita_iva}</p>
+                                </div>
+                                {company.codice_fiscale && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">Codice Fiscale</span>
+                                        <p className="font-semibold font-mono">{company.codice_fiscale}</p>
+                                    </div>
+                                )}
+                                <div>
+                                    <span className="text-sm text-gray-600">Forma Giuridica</span>
+                                    <p className="font-semibold">{company.forma_giuridica}</p>
+                                </div>
+                                {company.data_costituzione && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">Data Costituzione</span>
+                                        <p className="font-semibold">{formatDate(company.data_costituzione)}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow p-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                📍 Sede Legale
+                            </h3>
+                            <div className="space-y-3">
+                                {company.indirizzo && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">Indirizzo</span>
+                                        <p className="font-semibold">{company.indirizzo}</p>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-3 gap-3">
+                                    {company.citta && (
+                                        <div>
+                                            <span className="text-sm text-gray-600">Città</span>
+                                            <p className="font-semibold">{company.citta}</p>
+                                        </div>
+                                    )}
+                                    {company.provincia && (
+                                        <div>
+                                            <span className="text-sm text-gray-600">Provincia</span>
+                                            <p className="font-semibold">{company.provincia}</p>
+                                        </div>
+                                    )}
+                                    {company.cap && (
+                                        <div>
+                                            <span className="text-sm text-gray-600">CAP</span>
+                                            <p className="font-semibold">{company.cap}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow p-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                📋 Dati Fiscali e Registrali
+                            </h3>
+                            <div className="space-y-3">
+                                {company.numero_rea && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">Numero REA</span>
+                                        <p className="font-semibold">{company.numero_rea}</p>
+                                    </div>
+                                )}
+                                {company.codice_ateco && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">Codice ATECO</span>
+                                        <p className="font-semibold font-mono">{company.codice_ateco}</p>
+                                    </div>
+                                )}
+                                {company.pec && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">PEC</span>
+                                        <p className="font-semibold">{company.pec}</p>
+                                    </div>
+                                )}
+                                {company.codice_destinatario && (
+                                    <div>
+                                        <span className="text-sm text-gray-600">Codice SDI</span>
+                                        <p className="font-semibold font-mono">{company.codice_destinatario}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow p-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                🏭 Settore di Attività
+                            </h3>
+                            <p className="text-gray-700">{company.settore || 'Non specificato'}</p>
+                            {company.dipendenti > 0 && (
+                                <div className="mt-4 pt-4 border-t">
+                                    <span className="text-sm text-gray-600">Dipendenti</span>
+                                    <p className="text-2xl font-bold text-blue-600">{company.dipendenti}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {company.bilancio && (
+                        <div className="bg-white rounded-xl shadow p-6 mt-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                💰 Dati di Bilancio {company.bilancio.anno && `(${company.bilancio.anno})`}
+                            </h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                {company.bilancio.ricavi > 0 && (
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <span className="text-sm text-gray-600">Ricavi</span>
+                                        <p className="text-2xl font-bold text-blue-600">
+                                            {formatCurrency(company.bilancio.ricavi)}
+                                        </p>
+                                    </div>
+                                )}
+                                {company.bilancio.patrimonio_netto !== 0 && (
+                                    <div className="bg-green-50 p-4 rounded-lg">
+                                        <span className="text-sm text-gray-600">Patrimonio Netto</span>
+                                        <p className="text-2xl font-bold text-green-600">
+                                            {formatCurrency(company.bilancio.patrimonio_netto)}
+                                        </p>
+                                    </div>
+                                )}
+                                {company.bilancio.ebitda > 0 && (
+                                    <div className="bg-purple-50 p-4 rounded-lg">
+                                        <span className="text-sm text-gray-600">EBITDA</span>
+                                        <p className="text-2xl font-bold text-purple-600">
+                                            {formatCurrency(company.bilancio.ebitda)}
+                                        </p>
+                                    </div>
+                                )}
+                                {company.bilancio.utile_netto !== 0 && (
+                                    <div className="bg-yellow-50 p-4 rounded-lg">
+                                        <span className="text-sm text-gray-600">Utile Netto</span>
+                                        <p className="text-2xl font-bold text-yellow-600">
+                                            {formatCurrency(company.bilancio.utile_netto)}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mt-8 flex gap-4">
+                        <button
+                            onClick={calculateScore}
+                            disabled={loading}
+                            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition"
+                        >
+                            {loading ? 'Calcolo in corso...' : '🔄 Ricalcola Score'}
+                        </button>
+                        <button
+                            onClick={() => {
+                                setSelectedCompany(null);
+                                setView('companies');
+                            }}
+                            className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+                        >
+                            Chiudi
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================
+        // NEW COMPANY COMPONENT
+        // ============================================
+        function NewCompany({ token, setView }) {
             const [formData, setFormData] = useState({
                 ragione_sociale: '',
                 partita_iva: '',
-                codice_fiscale: '',
                 forma_giuridica: 'SRL',
                 settore: ''
             });
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
@@ -410,26 +636,25 @@
                 setError('');
 
                 try {
-                    const userId = localStorage.getItem('userId');
                     const response = await fetch(`${API_BASE}/companies`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ ...formData, userId })
+                        body: JSON.stringify(formData)
                     });
 
                     const data = await response.json();
 
-                    if (!response.ok) {
-                        throw new Error(data.message || 'Errore nella creazione');
+                    if (data.success) {
+                        setView('companies');
+                    } else {
+                        setError(data.error || 'Errore durante la creazione');
                     }
-
-                    alert('Azienda creata con successo!');
-                    setView('companies');
                 } catch (err) {
-                    setError(err.message);
+                    setError('Errore di connessione');
+                } finally {
                     setLoading(false);
                 }
             };
@@ -439,269 +664,279 @@
                     <h1 className="text-3xl font-bold mb-8">Nuova Azienda</h1>
 
                     {error && (
-                        <div className="bg-red-50 text-red-800 p-4 rounded mb-6">
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Ragione Sociale *</label>
+                    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6">
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Ragione Sociale *</label>
                             <input
                                 type="text"
                                 value={formData.ragione_sociale}
                                 onChange={(e) => setFormData({...formData, ragione_sociale: e.target.value})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Partita IVA *</label>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Partita IVA *</label>
                             <input
                                 type="text"
                                 value={formData.partita_iva}
-                                onChange={(e) => setFormData({...formData, partita_iva: e.target.value.replace(/\D/g, '').slice(0, 11)})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                onChange={(e) => setFormData({...formData, partita_iva: e.target.value})}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 maxLength="11"
                                 required
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Codice Fiscale</label>
-                            <input
-                                type="text"
-                                value={formData.codice_fiscale}
-                                onChange={(e) => setFormData({...formData, codice_fiscale: e.target.value})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Forma Giuridica *</label>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Forma Giuridica *</label>
                             <select
                                 value={formData.forma_giuridica}
                                 onChange={(e) => setFormData({...formData, forma_giuridica: e.target.value})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                                required
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                <option value="SRL">S.R.L.</option>
-                                <option value="SPA">S.P.A.</option>
-                                <option value="SRLS">S.R.L.S.</option>
-                                <option value="SNC">S.N.C.</option>
-                                <option value="SAS">S.A.S.</option>
+                                <option value="SRL">SRL</option>
+                                <option value="SRLS">SRLS</option>
+                                <option value="SPA">SPA</option>
+                                <option value="SNC">SNC</option>
+                                <option value="SAS">SAS</option>
                                 <option value="DITTA_INDIVIDUALE">Ditta Individuale</option>
+                                <option value="COOPERATIVA">Cooperativa</option>
                             </select>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold mb-2">Settore *</label>
+                        <div className="mb-6">
+                            <label className="block text-gray-700 mb-2">Settore</label>
                             <input
                                 type="text"
                                 value={formData.settore}
                                 onChange={(e) => setFormData({...formData, settore: e.target.value})}
-                                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                                required
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 transition"
-                        >
-                            {loading ? 'Creazione...' : 'Crea Azienda'}
-                        </button>
+                        <div className="flex gap-4">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
+                            >
+                                {loading ? 'Creazione...' : 'Crea Azienda'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setView('companies')}
+                                className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+                            >
+                                Annulla
+                            </button>
+                        </div>
                     </form>
                 </div>
             );
         }
 
-        // ImportPIVA Component
+        // ============================================
+        // IMPORT PIVA COMPONENT
+        // ============================================
         function ImportPIVA({ token, setView }) {
+            const [partitaIva, setPartitaIva] = useState('');
+            const [openapiToken, setOpenapiToken] = useState('Bearer 6936e4beb5b77ef76d081279');
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
-            const [success, setSuccess] = useState(false);
-            const [formData, setFormData] = useState({
-                openapi_token: '',
-                partita_iva: ''
-            });
+            const [success, setSuccess] = useState('');
 
-            const handleSubmit = async (e) => {
+            const handleImport = async (e) => {
                 e.preventDefault();
-
-                if (formData.partita_iva.length !== 11) {
-                    setError('P.IVA deve essere di 11 cifre');
-                    return;
-                }
-
-                if (!formData.openapi_token.trim()) {
-                    setError('Token OpenAPI.com obbligatorio');
-                    return;
-                }
-
                 setLoading(true);
                 setError('');
+                setSuccess('');
 
                 try {
                     const userId = localStorage.getItem('userId');
-
+                    
                     const response = await fetch(`${API_BASE}/companies/import-piva`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            partita_iva: formData.partita_iva,
-                            openapi_token: formData.openapi_token,
+                            partita_iva: partitaIva,
+                            openapi_token: openapiToken,
                             userId: userId
                         })
                     });
 
                     const data = await response.json();
 
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            throw new Error('Token OpenAPI.com non valido o scaduto');
-                        } else if (response.status === 404) {
-                            throw new Error('P.IVA non trovata nel Registro Imprese');
-                        } else if (response.status === 409) {
-                            throw new Error('Azienda già presente nel database');
-                        }
-                        throw new Error(data.message || 'Errore durante l\'importazione');
+                    if (data.success) {
+                        setSuccess('Azienda importata con successo!');
+                        setTimeout(() => setView('companies'), 2000);
+                    } else {
+                        setError(data.error || 'Errore durante l\'import');
                     }
-
-                    setSuccess(true);
-                    setTimeout(() => {
-                        setView('companies');
-                    }, 2000);
-
                 } catch (err) {
-                    setError(err.message);
+                    setError('Errore di connessione');
+                } finally {
                     setLoading(false);
                 }
             };
 
-            if (success) {
-                return (
-                    <div className="p-8 max-w-2xl mx-auto">
-                        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <div className="text-4xl">✅</div>
-                            </div>
-                            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                                🎉 Azienda Importata con Successo!
-                            </h2>
-                            <p className="text-gray-600 mb-6">
-                                Tutti i dati sono stati recuperati da OpenAPI.com
-                            </p>
-                        </div>
-                    </div>
-                );
-            }
-
             return (
                 <div className="p-8 max-w-2xl mx-auto">
-                    <button
-                        onClick={() => setView('companies')}
-                        className="text-blue-600 hover:text-blue-700 mb-4 flex items-center"
-                    >
-                        ← Torna alle Aziende
-                    </button>
+                    <h1 className="text-3xl font-bold mb-8">Import da Partita IVA</h1>
 
-                    <h1 className="text-4xl font-bold mb-2">📥 Import da Partita IVA</h1>
-                    <p className="text-gray-600 mb-8">
-                        Recupera automaticamente tutti i dati aziendali da OpenAPI.com
-                    </p>
-
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-8">
-                        <div className="flex items-start gap-3">
-                            <div className="text-2xl">💡</div>
-                            <div>
-                                <h3 className="font-semibold text-blue-900 mb-2">Come funziona</h3>
-                                <ul className="text-sm text-blue-800 space-y-1">
-                                    <li>✅ Inserisci il tuo token OpenAPI.com</li>
-                                    <li>✅ Inserisci la Partita IVA (11 cifre)</li>
-                                    <li>✅ Clicca "Importa" - tutti i dati vengono recuperati automaticamente!</li>
-                                    <li>✅ L'azienda viene salvata completa di: ragione sociale, indirizzo, settore, dati finanziari</li>
-                                </ul>
-                            </div>
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            {error}
                         </div>
-                    </div>
+                    )}
 
-                    <div className="bg-white rounded-2xl shadow-xl p-8">
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    🔐 Token OpenAPI.com *
-                                </label>
-                                <input
-                                    type="password"
-                                    value={formData.openapi_token}
-                                    onChange={(e) => setFormData({...formData, openapi_token: e.target.value})}
-                                    placeholder="Inserisci il Bearer Token..."
-                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                    required
-                                    disabled={loading}
-                                />
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Genera il token su <a href="https://console.openapi.com/oauth" target="_blank" className="text-blue-600 hover:underline">console.openapi.com/oauth</a>
-                                </p>
-                            </div>
+                    {success && (
+                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                            {success}
+                        </div>
+                    )}
 
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    🏢 Partita IVA *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.partita_iva}
-                                    onChange={(e) => setFormData({...formData, partita_iva: e.target.value.replace(/\D/g, '').slice(0, 11)})}
-                                    placeholder="01234567890"
-                                    maxLength="11"
-                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-lg font-mono tracking-wider"
-                                    required
-                                    disabled={loading}
-                                />
-                                <p className="text-xs text-gray-500 mt-2">
-                                    11 cifre - Es: 12345678901
-                                </p>
-                            </div>
+                    <form onSubmit={handleImport} className="bg-white rounded-xl shadow p-6">
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">Partita IVA *</label>
+                            <input
+                                type="text"
+                                value={partitaIva}
+                                onChange={(e) => setPartitaIva(e.target.value)}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="12345678901"
+                                maxLength="11"
+                                required
+                            />
+                            <p className="text-sm text-gray-600 mt-1">Inserisci una P.IVA italiana di 11 cifre</p>
+                        </div>
 
-                            {error && (
-                                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                                    <div className="flex items-center gap-2 text-red-800">
-                                        <span>⚠️</span>
-                                        <span className="font-semibold">{error}</span>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="mb-6">
+                            <label className="block text-gray-700 mb-2">OpenAPI Token *</label>
+                            <input
+                                type="text"
+                                value={openapiToken}
+                                onChange={(e) => setOpenapiToken(e.target.value)}
+                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Bearer xxx"
+                                required
+                            />
+                            <p className="text-sm text-gray-600 mt-1">Token OpenAPI con formato "Bearer xxx"</p>
+                        </div>
 
+                        <div className="flex gap-4">
                             <button
                                 type="submit"
-                                disabled={loading || formData.partita_iva.length !== 11}
-                                className={`w-full py-4 rounded-lg font-bold text-white text-lg transition-all ${
-                                    loading || formData.partita_iva.length !== 11
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700'
-                                }`}
+                                disabled={loading}
+                                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
                             >
-                                {loading ? '⏳ Importazione in corso...' : '📥 Importa Azienda da OpenAPI.com'}
+                                {loading ? 'Importazione...' : 'Importa Azienda'}
                             </button>
-                        </form>
-                    </div>
+                            <button
+                                type="button"
+                                onClick={() => setView('companies')}
+                                className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+                            >
+                                Annulla
+                            </button>
+                        </div>
+                    </form>
 
-                    <div className="mt-8 text-center text-sm text-gray-600">
-                        <p>💡 <strong>Suggerimento:</strong> Assicurati che il token sia valido e attivo</p>
-                        <p className="mt-2">I dati vengono recuperati dal <strong>Registro Imprese Italiano</strong> tramite OpenAPI.com</p>
+                    <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-blue-900 mb-2">Come funziona</h3>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                            <li>✓ Inserisci una P.IVA italiana valida</li>
+                            <li>✓ I dati vengono recuperati da OpenAPI.com</li>
+                            <li>✓ L'azienda viene aggiunta automaticamente</li>
+                            <li>✓ Lo score creditizio viene calcolato</li>
+                        </ul>
                     </div>
                 </div>
             );
         }
 
-        // Render App
+        // ============================================
+        // MAIN APP COMPONENT
+        // ============================================
+        function App() {
+            const [user, setUser] = useState(null);
+            const [token, setToken] = useState(localStorage.getItem('token'));
+            const [view, setView] = useState('dashboard');
+            const [selectedCompany, setSelectedCompany] = useState(null);
+
+            useEffect(() => {
+                if (token) {
+                    verifyToken();
+                }
+            }, [token]);
+
+            const verifyToken = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/verify`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        setUser(data.user);
+                    } else {
+                        logout();
+                    }
+                } catch (err) {
+                    logout();
+                }
+            };
+
+            const logout = () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                setToken(null);
+                setUser(null);
+                setView('dashboard');
+            };
+
+            if (!token || !user) {
+                return <Login setToken={setToken} setUser={setUser} />;
+            }
+
+            return (
+                <div className="flex h-screen bg-gray-100">
+                    <Sidebar view={view} setView={setView} logout={logout} user={user} />
+                    <main className="flex-1 overflow-auto">
+                        {view === 'dashboard' && <Dashboard token={token} />}
+                        {view === 'companies' && !selectedCompany && (
+                            <Companies 
+                                token={token} 
+                                setView={setView}
+                                setSelectedCompany={setSelectedCompany}
+                            />
+                        )}
+                        {view === 'companies' && selectedCompany && (
+                            <CompanyDetail 
+                                company={selectedCompany}
+                                token={token}
+                                setView={setView}
+                                setSelectedCompany={setSelectedCompany}
+                            />
+                        )}
+                        {view === 'new-company' && <NewCompany token={token} setView={setView} />}
+                        {view === 'import-piva' && <ImportPIVA token={token} setView={setView} />}
+                    </main>
+                </div>
+            );
+        }
+
+        // ============================================
+        // RENDER APP
+        // ============================================
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
