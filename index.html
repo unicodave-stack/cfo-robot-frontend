@@ -507,8 +507,8 @@
                         )}
                     </div>
 
-                    <h1 className="text-4xl font-bold mb-2">{company.ragione_sociale}</h1>
-                    <p className="text-gray-600 mb-8">P.IVA: {company.partita_iva}</p>
+                    <h1 className="text-4xl font-bold mb-2">{String(company.ragione_sociale || 'Azienda')}</h1>
+                    <p className="text-gray-600 mb-8">P.IVA: {String(company.partita_iva || 'N/A')}</p>
 
                     {score && (
                         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
@@ -517,23 +517,23 @@
                                 <div className="flex-1">
                                     <div className="flex items-baseline gap-4 mb-4">
                                         <span className={`text-6xl font-bold ${getScoreColor(score.score)} px-6 py-3 rounded-xl`}>
-                                            {score.score}
+                                            {typeof score.score === 'number' ? score.score : 'N/A'}
                                         </span>
                                         <span className="text-gray-600">/100</span>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className={`${getRatingColor(score.rating)} text-white px-4 py-2 rounded-lg font-bold text-xl`}>
-                                            {score.rating}
+                                            {String(score.rating || 'N/A')}
                                         </span>
-                                        <span className="text-gray-600 text-lg">{score.descrizione}</span>
+                                        <span className="text-gray-600 text-lg">{String(score.descrizione || '')}</span>
                                     </div>
                                 </div>
                                 
-                                {score.rischio_default && (
+                                {score.rischio_default !== undefined && (
                                     <div className="bg-gray-50 p-6 rounded-xl">
                                         <div className="text-sm text-gray-600 mb-2">Rischio Default</div>
                                         <div className="text-3xl font-bold text-gray-800">
-                                            {score.rischio_default}%
+                                            {typeof score.rischio_default === 'number' ? score.rischio_default : 'N/A'}%
                                         </div>
                                     </div>
                                 )}
@@ -549,21 +549,21 @@
                             <div className="space-y-3">
                                 <div>
                                     <span className="text-sm text-gray-600">Ragione Sociale</span>
-                                    <p className="font-semibold">{company.ragione_sociale}</p>
+                                    <p className="font-semibold">{String(company.ragione_sociale || '')}</p>
                                 </div>
                                 <div>
                                     <span className="text-sm text-gray-600">P.IVA</span>
-                                    <p className="font-semibold font-mono">{company.partita_iva}</p>
+                                    <p className="font-semibold font-mono">{String(company.partita_iva || '')}</p>
                                 </div>
                                 {company.codice_fiscale && (
                                     <div>
                                         <span className="text-sm text-gray-600">Codice Fiscale</span>
-                                        <p className="font-semibold font-mono">{company.codice_fiscale}</p>
+                                        <p className="font-semibold font-mono">{String(company.codice_fiscale)}</p>
                                     </div>
                                 )}
                                 <div>
                                     <span className="text-sm text-gray-600">Forma Giuridica</span>
-                                    <p className="font-semibold">{company.forma_giuridica}</p>
+                                    <p className="font-semibold">{String(company.forma_giuridica || '')}</p>
                                 </div>
                                 {company.data_costituzione && (
                                     <div>
@@ -582,26 +582,26 @@
                                 {company.indirizzo && (
                                     <div>
                                         <span className="text-sm text-gray-600">Indirizzo</span>
-                                        <p className="font-semibold">{company.indirizzo}</p>
+                                        <p className="font-semibold">{String(company.indirizzo)}</p>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-3 gap-3">
                                     {company.citta && (
                                         <div>
                                             <span className="text-sm text-gray-600">Città</span>
-                                            <p className="font-semibold">{company.citta}</p>
+                                            <p className="font-semibold">{String(company.citta)}</p>
                                         </div>
                                     )}
                                     {company.provincia && (
                                         <div>
                                             <span className="text-sm text-gray-600">Provincia</span>
-                                            <p className="font-semibold">{company.provincia}</p>
+                                            <p className="font-semibold">{String(company.provincia)}</p>
                                         </div>
                                     )}
                                     {company.cap && (
                                         <div>
                                             <span className="text-sm text-gray-600">CAP</span>
-                                            <p className="font-semibold">{company.cap}</p>
+                                            <p className="font-semibold">{String(company.cap)}</p>
                                         </div>
                                     )}
                                 </div>
@@ -616,25 +616,25 @@
                                 {company.numero_rea && (
                                     <div>
                                         <span className="text-sm text-gray-600">Numero REA</span>
-                                        <p className="font-semibold">{company.numero_rea}</p>
+                                        <p className="font-semibold">{String(company.numero_rea)}</p>
                                     </div>
                                 )}
                                 {company.codice_ateco && (
                                     <div>
                                         <span className="text-sm text-gray-600">Codice ATECO</span>
-                                        <p className="font-semibold font-mono">{company.codice_ateco}</p>
+                                        <p className="font-semibold font-mono">{String(company.codice_ateco)}</p>
                                     </div>
                                 )}
                                 {company.pec && (
                                     <div>
                                         <span className="text-sm text-gray-600">PEC</span>
-                                        <p className="font-semibold">{company.pec}</p>
+                                        <p className="font-semibold">{String(company.pec)}</p>
                                     </div>
                                 )}
                                 {company.codice_destinatario && (
                                     <div>
                                         <span className="text-sm text-gray-600">Codice SDI</span>
-                                        <p className="font-semibold font-mono">{company.codice_destinatario}</p>
+                                        <p className="font-semibold font-mono">{String(company.codice_destinatario)}</p>
                                     </div>
                                 )}
                             </div>
@@ -644,11 +644,11 @@
                             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                                 🏭 Settore di Attività
                             </h3>
-                            <p className="text-gray-700">{company.settore || 'Non specificato'}</p>
+                            <p className="text-gray-700">{String(company.settore || 'Non specificato')}</p>
                             {company.dipendenti > 0 && (
                                 <div className="mt-4 pt-4 border-t">
                                     <span className="text-sm text-gray-600">Dipendenti</span>
-                                    <p className="text-2xl font-bold text-blue-600">{company.dipendenti}</p>
+                                    <p className="text-2xl font-bold text-blue-600">{String(company.dipendenti)}</p>
                                 </div>
                             )}
                         </div>
@@ -657,7 +657,7 @@
                     {company.bilancio && (
                         <div className="bg-white rounded-xl shadow p-6 mt-6">
                             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                💰 Dati di Bilancio {company.bilancio.anno && `(${company.bilancio.anno})`}
+                                💰 Dati di Bilancio {company.bilancio.anno ? `(${String(company.bilancio.anno)})` : ''}
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                 {company.bilancio.ricavi > 0 && (
