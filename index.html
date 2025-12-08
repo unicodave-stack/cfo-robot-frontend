@@ -398,6 +398,53 @@
                 token: token?.substring(0, 20) + '...'
             });
 
+            // SANITIZE COMPANY - Convert all nested objects to strings
+            const sanitizeValue = (value) => {
+                if (value === null || value === undefined) return '';
+                if (typeof value === 'string') return value;
+                if (typeof value === 'number') return value;
+                if (typeof value === 'boolean') return value;
+                if (typeof value === 'object') {
+                    // If it's an object, try to extract meaningful string
+                    if (value.description) return String(value.description);
+                    if (value.name) return String(value.name);
+                    if (value.code) return String(value.code);
+                    // Otherwise stringify it
+                    return JSON.stringify(value);
+                }
+                return String(value);
+            };
+
+            const sanitizeCompany = (comp) => {
+                if (!comp) return null;
+                
+                const sanitized = { ...comp };
+                
+                // Sanitize all first-level fields
+                Object.keys(sanitized).forEach(key => {
+                    if (key !== 'bilancio' && key !== '_id' && key !== 'userId') {
+                        sanitized[key] = sanitizeValue(sanitized[key]);
+                    }
+                });
+
+                // Keep bilancio as object but sanitize its values
+                if (sanitized.bilancio && typeof sanitized.bilancio === 'object') {
+                    const newBilancio = { ...sanitized.bilancio };
+                    Object.keys(newBilancio).forEach(key => {
+                        if (typeof newBilancio[key] !== 'number') {
+                            newBilancio[key] = sanitizeValue(newBilancio[key]);
+                        }
+                    });
+                    sanitized.bilancio = newBilancio;
+                }
+
+                return sanitized;
+            };
+
+            const safeCompany = sanitizeCompany(company);
+            
+            console.log('[CompanyDetail] Sanitized company:', safeCompany);
+
             useEffect(() => {
                 console.log('[CompanyDetail] useEffect triggered');
                 if (company && company._id) {
@@ -460,7 +507,7 @@
             };
 
             // Safety check
-            if (!company) {
+            if (!safeCompany) {
                 return (
                     <div className="p-8">
                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -479,7 +526,7 @@
             return (
                 <div className="p-8 max-w-7xl mx-auto">
                     {/* DEBUG INFO */}
-                    {!company && (
+                    {!safeCompany && (
                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                             ⚠️ ERRORE: company è undefined!
                         </div>
@@ -507,8 +554,8 @@
                         )}
                     </div>
 
-                    <h1 className="text-4xl font-bold mb-2">{String(company.ragione_sociale || 'Azienda')}</h1>
-                    <p className="text-gray-600 mb-8">P.IVA: {String(company.partita_iva || 'N/A')}</p>
+                    <h1 className="text-4xl font-bold mb-2">{String(safeCompany.ragione_sociale || 'Azienda')}</h1>
+                    <p className="text-gray-600 mb-8">P.IVA: {String(safeCompany.partita_iva || 'N/A')}</p>
 
                     {score && (
                         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
@@ -549,26 +596,26 @@
                             <div className="space-y-3">
                                 <div>
                                     <span className="text-sm text-gray-600">Ragione Sociale</span>
-                                    <p className="font-semibold">{String(company.ragione_sociale || '')}</p>
+                                    <p className="font-semibold">{String(safeCompany.ragione_sociale || '')}</p>
                                 </div>
                                 <div>
                                     <span className="text-sm text-gray-600">P.IVA</span>
-                                    <p className="font-semibold font-mono">{String(company.partita_iva || '')}</p>
+                                    <p className="font-semibold font-mono">{String(safeCompany.partita_iva || '')}</p>
                                 </div>
-                                {company.codice_fiscale && (
+                                {safeCompany.codice_fiscale && (
                                     <div>
                                         <span className="text-sm text-gray-600">Codice Fiscale</span>
-                                        <p className="font-semibold font-mono">{String(company.codice_fiscale)}</p>
+                                        <p className="font-semibold font-mono">{String(safeCompany.codice_fiscale)}</p>
                                     </div>
                                 )}
                                 <div>
                                     <span className="text-sm text-gray-600">Forma Giuridica</span>
-                                    <p className="font-semibold">{String(company.forma_giuridica || '')}</p>
+                                    <p className="font-semibold">{String(safeCompany.forma_giuridica || '')}</p>
                                 </div>
-                                {company.data_costituzione && (
+                                {safeCompany.data_costituzione && (
                                     <div>
                                         <span className="text-sm text-gray-600">Data Costituzione</span>
-                                        <p className="font-semibold">{formatDate(company.data_costituzione)}</p>
+                                        <p className="font-semibold">{formatDate(safeCompany.data_costituzione)}</p>
                                     </div>
                                 )}
                             </div>
@@ -579,29 +626,29 @@
                                 📍 Sede Legale
                             </h3>
                             <div className="space-y-3">
-                                {company.indirizzo && (
+                                {safeCompany.indirizzo && (
                                     <div>
                                         <span className="text-sm text-gray-600">Indirizzo</span>
-                                        <p className="font-semibold">{String(company.indirizzo)}</p>
+                                        <p className="font-semibold">{String(safeCompany.indirizzo)}</p>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-3 gap-3">
-                                    {company.citta && (
+                                    {safeCompany.citta && (
                                         <div>
                                             <span className="text-sm text-gray-600">Città</span>
-                                            <p className="font-semibold">{String(company.citta)}</p>
+                                            <p className="font-semibold">{String(safeCompany.citta)}</p>
                                         </div>
                                     )}
-                                    {company.provincia && (
+                                    {safeCompany.provincia && (
                                         <div>
                                             <span className="text-sm text-gray-600">Provincia</span>
-                                            <p className="font-semibold">{String(company.provincia)}</p>
+                                            <p className="font-semibold">{String(safeCompany.provincia)}</p>
                                         </div>
                                     )}
-                                    {company.cap && (
+                                    {safeCompany.cap && (
                                         <div>
                                             <span className="text-sm text-gray-600">CAP</span>
-                                            <p className="font-semibold">{String(company.cap)}</p>
+                                            <p className="font-semibold">{String(safeCompany.cap)}</p>
                                         </div>
                                     )}
                                 </div>
@@ -613,28 +660,28 @@
                                 📋 Dati Fiscali e Registrali
                             </h3>
                             <div className="space-y-3">
-                                {company.numero_rea && (
+                                {safeCompany.numero_rea && (
                                     <div>
                                         <span className="text-sm text-gray-600">Numero REA</span>
-                                        <p className="font-semibold">{String(company.numero_rea)}</p>
+                                        <p className="font-semibold">{String(safeCompany.numero_rea)}</p>
                                     </div>
                                 )}
-                                {company.codice_ateco && (
+                                {safeCompany.codice_ateco && (
                                     <div>
                                         <span className="text-sm text-gray-600">Codice ATECO</span>
-                                        <p className="font-semibold font-mono">{String(company.codice_ateco)}</p>
+                                        <p className="font-semibold font-mono">{String(safeCompany.codice_ateco)}</p>
                                     </div>
                                 )}
-                                {company.pec && (
+                                {safeCompany.pec && (
                                     <div>
                                         <span className="text-sm text-gray-600">PEC</span>
-                                        <p className="font-semibold">{String(company.pec)}</p>
+                                        <p className="font-semibold">{String(safeCompany.pec)}</p>
                                     </div>
                                 )}
-                                {company.codice_destinatario && (
+                                {safeCompany.codice_destinatario && (
                                     <div>
                                         <span className="text-sm text-gray-600">Codice SDI</span>
-                                        <p className="font-semibold font-mono">{String(company.codice_destinatario)}</p>
+                                        <p className="font-semibold font-mono">{String(safeCompany.codice_destinatario)}</p>
                                     </div>
                                 )}
                             </div>
@@ -644,51 +691,51 @@
                             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                                 🏭 Settore di Attività
                             </h3>
-                            <p className="text-gray-700">{String(company.settore || 'Non specificato')}</p>
-                            {company.dipendenti > 0 && (
+                            <p className="text-gray-700">{String(safeCompany.settore || 'Non specificato')}</p>
+                            {safeCompany.dipendenti > 0 && (
                                 <div className="mt-4 pt-4 border-t">
                                     <span className="text-sm text-gray-600">Dipendenti</span>
-                                    <p className="text-2xl font-bold text-blue-600">{String(company.dipendenti)}</p>
+                                    <p className="text-2xl font-bold text-blue-600">{String(safeCompany.dipendenti)}</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {company.bilancio && (
+                    {safeCompany.bilancio && (
                         <div className="bg-white rounded-xl shadow p-6 mt-6">
                             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                💰 Dati di Bilancio {company.bilancio.anno ? `(${String(company.bilancio.anno)})` : ''}
+                                💰 Dati di Bilancio {safeCompany.bilancio.anno ? `(${String(safeCompany.bilancio.anno)})` : ''}
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                {company.bilancio.ricavi > 0 && (
+                                {safeCompany.bilancio.ricavi > 0 && (
                                     <div className="bg-blue-50 p-4 rounded-lg">
                                         <span className="text-sm text-gray-600">Ricavi</span>
                                         <p className="text-2xl font-bold text-blue-600">
-                                            {formatCurrency(company.bilancio.ricavi)}
+                                            {formatCurrency(safeCompany.bilancio.ricavi)}
                                         </p>
                                     </div>
                                 )}
-                                {company.bilancio.patrimonio_netto !== 0 && (
+                                {safeCompany.bilancio.patrimonio_netto !== 0 && (
                                     <div className="bg-green-50 p-4 rounded-lg">
                                         <span className="text-sm text-gray-600">Patrimonio Netto</span>
                                         <p className="text-2xl font-bold text-green-600">
-                                            {formatCurrency(company.bilancio.patrimonio_netto)}
+                                            {formatCurrency(safeCompany.bilancio.patrimonio_netto)}
                                         </p>
                                     </div>
                                 )}
-                                {company.bilancio.ebitda > 0 && (
+                                {safeCompany.bilancio.ebitda > 0 && (
                                     <div className="bg-purple-50 p-4 rounded-lg">
                                         <span className="text-sm text-gray-600">EBITDA</span>
                                         <p className="text-2xl font-bold text-purple-600">
-                                            {formatCurrency(company.bilancio.ebitda)}
+                                            {formatCurrency(safeCompany.bilancio.ebitda)}
                                         </p>
                                     </div>
                                 )}
-                                {company.bilancio.utile_netto !== 0 && (
+                                {safeCompany.bilancio.utile_netto !== 0 && (
                                     <div className="bg-yellow-50 p-4 rounded-lg">
                                         <span className="text-sm text-gray-600">Utile Netto</span>
                                         <p className="text-2xl font-bold text-yellow-600">
-                                            {formatCurrency(company.bilancio.utile_netto)}
+                                            {formatCurrency(safeCompany.bilancio.utile_netto)}
                                         </p>
                                     </div>
                                 )}
