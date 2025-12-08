@@ -49,7 +49,7 @@
     setUser(userData);
     setToken(userToken);
     localStorage.setItem('token', userToken);
-    localStorage.setItem('userId', userData._id); 
+    localStorage.setItem('userId', userData._id || userData.id);
             };
 
             const logout = () => {
