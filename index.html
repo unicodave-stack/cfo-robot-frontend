@@ -173,7 +173,7 @@
         // ============================================
         // SIDEBAR COMPONENT
         // ============================================
-        function Sidebar({ view, setView, logout, user, setShowAnalytics }) {
+        function Sidebar({ view, setView, logout, user, showAnalytics, setShowAnalytics }) {
             const menuItems = [
                 { id: 'dashboard', icon: '📊', label: 'Dashboard' },
                 { id: 'companies', icon: '🏢', label: 'Aziende' },
@@ -1784,7 +1784,7 @@
         // MAIN APP COMPONENT
         // ============================================
         // ===== DASHBOARD ANALYTICS COMPONENT =====
-        function DashboardAnalytics({ companies, onClose }) {
+        function DashboardAnalytics({ companies, onClose, setView }) {
             const [stats, setStats] = useState(null);
             
             useEffect(() => {
@@ -1826,6 +1826,40 @@
                     }, 100);
                 }
             }, [companies]);
+            
+            // Se companies è vuoto o undefined
+            if (!companies || companies.length === 0) {
+                return (
+                    <div className="p-8 max-w-7xl mx-auto">
+                        <div className="flex items-center justify-between mb-8">
+                            <h1 className="text-4xl font-bold">📊 Dashboard Analytics</h1>
+                            <button
+                                onClick={onClose}
+                                className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
+                            >
+                                ← Chiudi
+                            </button>
+                        </div>
+                        
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center">
+                            <div className="text-6xl mb-4">📊</div>
+                            <h2 className="text-2xl font-bold mb-4">Nessuna Azienda Presente</h2>
+                            <p className="text-gray-600 mb-6">
+                                Per visualizzare le analytics, devi prima importare alcune aziende.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    onClose();
+                                    setView('import-piva');
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
+                            >
+                                Vai a Import P.IVA
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
             
             const createRatingChart = (ratingDist) => {
                 const canvas = document.getElementById('chartRating');
@@ -2094,13 +2128,15 @@
                         setView={setView} 
                         logout={logout} 
                         user={user}
+                        showAnalytics={showAnalytics}
                         setShowAnalytics={setShowAnalytics}
                     />
                     <main className="flex-1 overflow-auto">
-                        {showAnalytics && companies && (
+                        {showAnalytics && (
                             <DashboardAnalytics 
-                                companies={companies}
+                                companies={companies || []}
                                 onClose={() => setShowAnalytics(false)}
+                                setView={setView}
                             />
                         )}
                         {!showAnalytics && view === 'dashboard' && <Dashboard token={token} />}
