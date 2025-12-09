@@ -8,6 +8,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -513,6 +514,11 @@
                 return new Date(date).toLocaleDateString('it-IT');
             };
 
+            const formatNumber = (num) => {
+                if (!num || num === 0) return '0';
+                return new Intl.NumberFormat('it-IT').format(Math.round(num));
+            };
+
             const getScoreColor = (score) => {
                 if (score >= 80) return 'text-green-600 bg-green-100';
                 if (score >= 60) return 'text-blue-600 bg-blue-100';
@@ -525,6 +531,125 @@
                 if (rating === 'A' || rating === 'BBB') return 'bg-blue-500';
                 if (rating === 'BB' || rating === 'B') return 'bg-yellow-500';
                 return 'bg-red-500';
+            };
+
+            // Export PDF
+            const exportPDF = () => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Title
+                doc.setFontSize(20);
+                doc.setTextColor(40);
+                doc.text('Report Aziendale CFO Robot v4.0', 20, 20);
+                
+                // Company Info
+                doc.setFontSize(16);
+                doc.setTextColor(60);
+                doc.text(safeCompany.ragione_sociale || 'N/A', 20, 35);
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+                doc.text(`P.IVA: ${safeCompany.partita_iva || 'N/A'}`, 20, 42);
+                
+                // Data Acquisizione
+                if (safeCompany.createdAt) {
+                    doc.setFontSize(9);
+                    doc.setTextColor(80);
+                    doc.text(`Dati importati il: ${formatDate(safeCompany.createdAt)}`, 20, 48);
+                }
+                
+                // Score Section
+                doc.setFontSize(14);
+                doc.setTextColor(40);
+                doc.text('Score Creditizio', 20, 58);
+                
+                doc.setFontSize(12);
+                if (score) {
+                    doc.text(`Score: ${score.score}/100`, 20, 66);
+                    doc.text(`Rating: ${score.rating || 'N/A'}`, 20, 73);
+                    doc.text(`Livello Rischio: ${score.livello_rischio || 'N/A'}`, 20, 80);
+                }
+                
+                // Financial Data
+                let y = 93;
+                doc.setFontSize(14);
+                doc.setTextColor(40);
+                doc.text('Dati Finanziari', 20, y);
+                y += 10;
+                
+                doc.setFontSize(10);
+                doc.setTextColor(80);
+                
+                if (safeCompany.bilancio_conto_economico_totale_ricavi > 0) {
+                    doc.text(`Ricavi: € ${formatNumber(safeCompany.bilancio_conto_economico_totale_ricavi)}`, 20, y);
+                    y += 6;
+                }
+                if (safeCompany.bilancio_conto_economico_margine_operativo_lordo > 0) {
+                    doc.text(`EBITDA: € ${formatNumber(safeCompany.bilancio_conto_economico_margine_operativo_lordo)}`, 20, y);
+                    y += 6;
+                }
+                if (safeCompany.bilancio_patrimonio_netto > 0) {
+                    doc.text(`Patrimonio Netto: € ${formatNumber(safeCompany.bilancio_patrimonio_netto)}`, 20, y);
+                    y += 6;
+                }
+                
+                // Profitability Ratios
+                y += 5;
+                doc.setFontSize(14);
+                doc.setTextColor(40);
+                doc.text('Indici di Redditivita', 20, y);
+                y += 10;
+                
+                doc.setFontSize(10);
+                doc.setTextColor(80);
+                
+                if (safeCompany.bilancio_ros > 0) {
+                    doc.text(`ROS: ${parseFloat(safeCompany.bilancio_ros).toFixed(2)}%`, 20, y);
+                    y += 6;
+                }
+                if (safeCompany.bilancio_roi > 0) {
+                    doc.text(`ROI: ${parseFloat(safeCompany.bilancio_roi).toFixed(2)}%`, 20, y);
+                    y += 6;
+                }
+                if (safeCompany.bilancio_roe > 0) {
+                    doc.text(`ROE: ${parseFloat(safeCompany.bilancio_roe).toFixed(2)}%`, 20, y);
+                    y += 6;
+                }
+                if (safeCompany.bilancio_roa > 0) {
+                    doc.text(`ROA: ${parseFloat(safeCompany.bilancio_roa).toFixed(2)}%`, 20, y);
+                    y += 6;
+                }
+                
+                // Other Info
+                if (safeCompany.dipendenti > 0 || safeCompany.data_costituzione) {
+                    y += 5;
+                    doc.setFontSize(14);
+                    doc.setTextColor(40);
+                    doc.text('Altre Informazioni', 20, y);
+                    y += 10;
+                    
+                    doc.setFontSize(10);
+                    doc.setTextColor(80);
+                    
+                    if (safeCompany.dipendenti > 0) {
+                        doc.text(`Dipendenti: ${safeCompany.dipendenti}`, 20, y);
+                        y += 6;
+                    }
+                    if (safeCompany.data_costituzione) {
+                        const anni = Math.floor((new Date() - new Date(safeCompany.data_costituzione)) / (365.25 * 24 * 60 * 60 * 1000));
+                        doc.text(`Data Costituzione: ${formatDate(safeCompany.data_costituzione)} (${anni} anni)`, 20, y);
+                        y += 6;
+                    }
+                }
+                
+                // Footer
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`Generato da CFO Robot v4.0 - ${new Date().toLocaleDateString('it-IT')}`, 20, 285);
+                
+                // Save
+                doc.save(`${safeCompany.ragione_sociale || 'azienda'}_report.pdf`);
             };
 
             // Safety check
@@ -576,7 +701,14 @@
                     </div>
 
                     <h1 className="text-4xl font-bold mb-2">{String(safeCompany.ragione_sociale || 'Azienda')}</h1>
-                    <p className="text-gray-600 mb-8">P.IVA: {String(safeCompany.partita_iva || 'N/A')}</p>
+                    <div className="flex items-center gap-4 mb-8">
+                        <p className="text-gray-600">P.IVA: {String(safeCompany.partita_iva || 'N/A')}</p>
+                        {safeCompany.createdAt && (
+                            <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+                                📅 Dati importati il {formatDate(safeCompany.createdAt)}
+                            </span>
+                        )}
+                    </div>
 
                     {score && (
                         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
@@ -609,6 +741,149 @@
                         </div>
                     )}
 
+                    {/* SEZIONE DATI DI BILANCIO */}
+                    <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold">📊 Dati di Bilancio</h2>
+                            {safeCompany.bilancio_anno && (
+                                <span className="text-sm text-gray-600">Anno: {safeCompany.bilancio_anno}</span>
+                            )}
+                        </div>
+
+                        {/* Indici di Redditività */}
+                        {(safeCompany.bilancio_ros > 0 || safeCompany.bilancio_roi > 0 || safeCompany.bilancio_roe > 0 || safeCompany.bilancio_roa > 0) && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-3 text-gray-700">Indici di Redditività</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {safeCompany.bilancio_ros > 0 && (
+                                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                            <div className="text-xs text-blue-600 mb-1 font-semibold">ROS</div>
+                                            <div className="text-2xl font-bold text-blue-700">{parseFloat(safeCompany.bilancio_ros).toFixed(2)}%</div>
+                                            <div className="text-xs text-gray-600 mt-1">Return on Sales</div>
+                                        </div>
+                                    )}
+                                    {safeCompany.bilancio_roi > 0 && (
+                                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                            <div className="text-xs text-green-600 mb-1 font-semibold">ROI</div>
+                                            <div className="text-2xl font-bold text-green-700">{parseFloat(safeCompany.bilancio_roi).toFixed(2)}%</div>
+                                            <div className="text-xs text-gray-600 mt-1">Return on Investment</div>
+                                        </div>
+                                    )}
+                                    {safeCompany.bilancio_roe > 0 && (
+                                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                            <div className="text-xs text-purple-600 mb-1 font-semibold">ROE</div>
+                                            <div className="text-2xl font-bold text-purple-700">{parseFloat(safeCompany.bilancio_roe).toFixed(2)}%</div>
+                                            <div className="text-xs text-gray-600 mt-1">Return on Equity</div>
+                                        </div>
+                                    )}
+                                    {safeCompany.bilancio_roa > 0 && (
+                                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                            <div className="text-xs text-orange-600 mb-1 font-semibold">ROA</div>
+                                            <div className="text-2xl font-bold text-orange-700">{parseFloat(safeCompany.bilancio_roa).toFixed(2)}%</div>
+                                            <div className="text-xs text-gray-600 mt-1">Return on Assets</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Conto Economico */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold mb-3 text-gray-700">Conto Economico</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {safeCompany.bilancio_conto_economico_totale_ricavi > 0 && (
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">Ricavi</div>
+                                        <div className="text-xl font-bold text-gray-800">
+                                            € {formatNumber(safeCompany.bilancio_conto_economico_totale_ricavi)}
+                                        </div>
+                                    </div>
+                                )}
+                                {safeCompany.bilancio_conto_economico_margine_operativo_lordo > 0 && (
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">EBITDA</div>
+                                        <div className="text-xl font-bold text-gray-800">
+                                            € {formatNumber(safeCompany.bilancio_conto_economico_margine_operativo_lordo)}
+                                        </div>
+                                    </div>
+                                )}
+                                {safeCompany.bilancio_conto_economico_risultato_operativo > 0 && (
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">EBIT</div>
+                                        <div className="text-xl font-bold text-gray-800">
+                                            € {formatNumber(safeCompany.bilancio_conto_economico_risultato_operativo)}
+                                        </div>
+                                    </div>
+                                )}
+                                {safeCompany.bilancio_conto_economico_utile_perdita_netto > 0 && (
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">Utile Netto</div>
+                                        <div className="text-xl font-bold text-gray-800">
+                                            € {formatNumber(safeCompany.bilancio_conto_economico_utile_perdita_netto)}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Stato Patrimoniale */}
+                        {safeCompany.bilancio_patrimonio_netto > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold mb-3 text-gray-700">Stato Patrimoniale</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="text-sm text-gray-600 mb-1">Patrimonio Netto</div>
+                                        <div className="text-xl font-bold text-gray-800">
+                                            € {formatNumber(safeCompany.bilancio_patrimonio_netto)}
+                                        </div>
+                                    </div>
+                                    {safeCompany.bilancio_totale_attivo > 0 && (
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <div className="text-sm text-gray-600 mb-1">Totale Attivo</div>
+                                            <div className="text-xl font-bold text-gray-800">
+                                                € {formatNumber(safeCompany.bilancio_totale_attivo)}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {safeCompany.bilancio_debiti_totali > 0 && (
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <div className="text-sm text-gray-600 mb-1">Debiti Totali</div>
+                                            <div className="text-xl font-bold text-gray-800">
+                                                € {formatNumber(safeCompany.bilancio_debiti_totali)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Dipendenti e Anzianità */}
+                        {(safeCompany.dipendenti > 0 || safeCompany.data_costituzione) && (
+                            <div className="mt-6 pt-6 border-t border-gray-200">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {safeCompany.dipendenti > 0 && (
+                                        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                                            <div className="text-sm text-indigo-600 mb-1 font-semibold">👥 Dipendenti</div>
+                                            <div className="text-2xl font-bold text-indigo-700">{safeCompany.dipendenti}</div>
+                                        </div>
+                                    )}
+                                    {safeCompany.data_costituzione && (
+                                        <div className="bg-teal-50 p-4 rounded-lg border border-teal-200">
+                                            <div className="text-sm text-teal-600 mb-1 font-semibold">🏢 Costituita il</div>
+                                            <div className="text-lg font-bold text-teal-700">{formatDate(safeCompany.data_costituzione)}</div>
+                                            <div className="text-xs text-gray-600 mt-1">
+                                                {(() => {
+                                                    const anni = Math.floor((new Date() - new Date(safeCompany.data_costituzione)) / (365.25 * 24 * 60 * 60 * 1000));
+                                                    return `${anni} anni di attività`;
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-white rounded-xl shadow p-6">
                             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -637,6 +912,22 @@
                                     <div>
                                         <span className="text-sm text-gray-600">Data Costituzione</span>
                                         <p className="font-semibold">{formatDate(safeCompany.data_costituzione)}</p>
+                                    </div>
+                                )}
+                                {safeCompany.createdAt && (
+                                    <div className="pt-3 mt-3 border-t border-gray-200">
+                                        <span className="text-sm text-gray-600">📅 Data Acquisizione Dati</span>
+                                        <p className="font-semibold text-blue-600">{formatDate(safeCompany.createdAt)}</p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {(() => {
+                                                const importDate = new Date(safeCompany.createdAt);
+                                                const now = new Date();
+                                                const diffDays = Math.floor((now - importDate) / (24 * 60 * 60 * 1000));
+                                                if (diffDays === 0) return 'Importata oggi';
+                                                if (diffDays === 1) return 'Importata ieri';
+                                                return `Importata ${diffDays} giorni fa`;
+                                            })()}
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -771,6 +1062,12 @@
                             className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition"
                         >
                             {loading ? 'Calcolo in corso...' : '🔄 Ricalcola Score'}
+                        </button>
+                        <button
+                            onClick={exportPDF}
+                            className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+                        >
+                            📄 Esporta PDF
                         </button>
                         <button
                             onClick={() => {
