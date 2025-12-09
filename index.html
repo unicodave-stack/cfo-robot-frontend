@@ -409,8 +409,29 @@
                     if (value.description) return String(value.description);
                     if (value.name) return String(value.name);
                     if (value.code) return String(value.code);
-                    // Otherwise stringify it
-                    return JSON.stringify(value);
+                    
+                    // For address-like objects, concatenate fields
+                    // Support both English (streetName, town) and Italian (via, citta) field names
+                    if (value.streetName || value.town || value.province || value.via || value.citta || value.provincia) {
+                        const parts = [];
+                        // English fields
+                        if (value.streetName) parts.push(String(value.streetName));
+                        if (value.zipCode) parts.push(String(value.zipCode));
+                        if (value.town) parts.push(String(value.town));
+                        if (value.province) parts.push('(' + String(value.province) + ')');
+                        // Italian fields
+                        if (value.via) parts.push(String(value.via));
+                        if (value.cap) parts.push(String(value.cap));
+                        if (value.citta) parts.push(String(value.citta));
+                        if (value.provincia) parts.push('(' + String(value.provincia) + ')');
+                        return parts.filter(Boolean).join(' ');
+                    }
+                    
+                    // Otherwise just return empty or first meaningful value
+                    const values = Object.values(value).filter(v => v && typeof v !== 'object');
+                    if (values.length > 0) return String(values[0]);
+                    
+                    return ''; // Don't show [object Object]
                 }
                 return String(value);
             };
