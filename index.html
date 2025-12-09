@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -172,12 +173,13 @@
         // ============================================
         // SIDEBAR COMPONENT
         // ============================================
-        function Sidebar({ view, setView, logout, user }) {
+        function Sidebar({ view, setView, logout, user, setShowAnalytics }) {
             const menuItems = [
                 { id: 'dashboard', icon: '📊', label: 'Dashboard' },
                 { id: 'companies', icon: '🏢', label: 'Aziende' },
                 { id: 'new-company', icon: '➕', label: 'Nuova Azienda' },
-                { id: 'import-piva', icon: '📥', label: 'Import P.IVA' }
+                { id: 'import-piva', icon: '📥', label: 'Import P.IVA' },
+                { id: 'batch-import', icon: '📦', label: 'Batch Import' }
             ];
 
             return (
@@ -202,6 +204,17 @@
                                 <span>{item.label}</span>
                             </button>
                         ))}
+                        
+                        {/* Analytics Button */}
+                        <div className="mt-6 pt-4 border-t border-gray-800">
+                            <button
+                                onClick={() => setShowAnalytics(true)}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white transition"
+                            >
+                                <span className="text-xl">📈</span>
+                                <span>Analytics</span>
+                            </button>
+                        </div>
                     </nav>
 
                     <div className="p-4 border-t border-gray-800">
@@ -473,6 +486,83 @@
                     calculateScore();
                 }
             }, [company?._id]); // Safe optional chaining
+
+            // Initialize chart for storico bilanci
+            useEffect(() => {
+                if (safeCompany?.storico_bilanci && safeCompany.storico_bilanci.length > 0) {
+                    const canvas = document.getElementById(`chartStorico_${safeCompany._id}`);
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Destroy existing chart if any
+                        if (canvas.chart) {
+                            canvas.chart.destroy();
+                        }
+                        
+                        const storico = safeCompany.storico_bilanci.slice().reverse();
+                        const anni = storico.map(b => b.anno);
+                        const ricavi = storico.map(b => b.ricavi / 1000); // In migliaia
+                        const ebitda = storico.map(b => b.ebitda / 1000);
+                        const patrimonio = storico.map(b => b.patrimonio_netto / 1000);
+                        
+                        canvas.chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: anni,
+                                datasets: [
+                                    {
+                                        label: 'Ricavi (€K)',
+                                        data: ricavi,
+                                        borderColor: 'rgb(59, 130, 246)',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                        tension: 0.3
+                                    },
+                                    {
+                                        label: 'EBITDA (€K)',
+                                        data: ebitda,
+                                        borderColor: 'rgb(34, 197, 94)',
+                                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                        tension: 0.3
+                                    },
+                                    {
+                                        label: 'Patrimonio (€K)',
+                                        data: patrimonio,
+                                        borderColor: 'rgb(168, 85, 247)',
+                                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                        tension: 0.3
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Trend Finanziario (migliaia €)'
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // Cleanup
+                return () => {
+                    const canvas = document.getElementById(`chartStorico_${safeCompany?._id}`);
+                    if (canvas && canvas.chart) {
+                        canvas.chart.destroy();
+                    }
+                };
+            }, [safeCompany?.storico_bilanci]);
 
             const calculateScore = async () => {
                 setLoading(true);
@@ -883,6 +973,51 @@
                             </div>
                         )}
                     </div>
+
+                    {/* SEZIONE STORICO BILANCI */}
+                    {safeCompany.storico_bilanci && safeCompany.storico_bilanci.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+                            <h2 className="text-2xl font-bold mb-6">📈 Trend Storico</h2>
+                            
+                            <div className="mb-6">
+                                <canvas id={`chartStorico_${safeCompany._id}`} height="80"></canvas>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {safeCompany.storico_bilanci.slice().reverse().map((bilancio, idx) => (
+                                    <div key={idx} className="bg-gray-50 p-4 rounded-lg">
+                                        <div className="text-lg font-bold text-blue-600 mb-3">Anno {bilancio.anno}</div>
+                                        <div className="space-y-2 text-sm">
+                                            {bilancio.ricavi > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Ricavi:</span>
+                                                    <span className="font-semibold">€ {formatNumber(bilancio.ricavi)}</span>
+                                                </div>
+                                            )}
+                                            {bilancio.ebitda > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">EBITDA:</span>
+                                                    <span className="font-semibold">€ {formatNumber(bilancio.ebitda)}</span>
+                                                </div>
+                                            )}
+                                            {bilancio.patrimonio_netto > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Patrimonio:</span>
+                                                    <span className="font-semibold">€ {formatNumber(bilancio.patrimonio_netto)}</span>
+                                                </div>
+                                            )}
+                                            {bilancio.dipendenti > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">Dipendenti:</span>
+                                                    <span className="font-semibold">{bilancio.dipendenti}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-white rounded-xl shadow p-6">
@@ -1330,19 +1465,571 @@
         }
 
         // ============================================
+        // BATCH IMPORT COMPONENT
+        // ============================================
+        function BatchImport({ token, setView }) {
+            const [file, setFile] = useState(null);
+            const [previewData, setPreviewData] = useState(null);
+            const [importing, setImporting] = useState(false);
+            const [results, setResults] = useState(null);
+            const [progress, setProgress] = useState({ current: 0, total: 0 });
+
+            const handleFileChange = async (e) => {
+                const selectedFile = e.target.files[0];
+                if (!selectedFile) return;
+
+                setFile(selectedFile);
+                
+                // Upload and preview
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                try {
+                    const response = await fetch(`${API_BASE}/batch-import/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        setPreviewData(data);
+                    } else {
+                        alert('Errore: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Errore upload: ' + error.message);
+                }
+            };
+
+            const startImport = async () => {
+                if (!previewData || !previewData.piveList) return;
+
+                setImporting(true);
+                setProgress({ current: 0, total: previewData.piveList.length });
+
+                try {
+                    const userId = localStorage.getItem('userId');
+                    
+                    // Simulate progress updates (since backend doesn't stream progress)
+                    const progressInterval = setInterval(() => {
+                        setProgress(prev => ({
+                            ...prev,
+                            current: Math.min(prev.current + 1, prev.total - 1)
+                        }));
+                    }, 1000);
+
+                    const response = await fetch(`${API_BASE}/batch-import/process`, {
+                        method: 'POST',
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            piveList: previewData.piveList,
+                            userId: userId
+                        })
+                    });
+
+                    clearInterval(progressInterval);
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        setResults(data.results);
+                        setProgress({ current: data.results.total, total: data.results.total });
+                    } else {
+                        alert('Errore import: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Errore: ' + error.message);
+                } finally {
+                    setImporting(false);
+                }
+            };
+
+            return (
+                <div className="p-8 max-w-4xl mx-auto">
+                    <h1 className="text-4xl font-bold mb-8">📦 Batch Import da Excel</h1>
+
+                    {/* Instructions */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+                        <h2 className="text-lg font-bold mb-3">📋 Istruzioni</h2>
+                        <ol className="list-decimal list-inside space-y-2 text-sm">
+                            <li>Prepara un file Excel (.xlsx) con una colonna chiamata "P.IVA" o "PIVA"</li>
+                            <li>Inserisci una P.IVA per riga (11 cifre)</li>
+                            <li>Carica il file usando il pulsante sotto</li>
+                            <li>Controlla l'anteprima e clicca "Avvia Import"</li>
+                            <li>Il sistema importerà automaticamente tutte le aziende da OpenAPI</li>
+                        </ol>
+                        <div className="mt-4 p-3 bg-white rounded border border-blue-300">
+                            <div className="text-xs font-mono">
+                                <div className="font-bold">Esempio formato Excel:</div>
+                                <div className="mt-2">
+                                    P.IVA<br/>
+                                    10880990964<br/>
+                                    12345678901<br/>
+                                    98765432109
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* File Upload */}
+                    {!previewData && !results && (
+                        <div className="bg-white rounded-xl shadow-lg p-8">
+                            <label className="block mb-4">
+                                <span className="text-lg font-semibold mb-2 block">Seleziona file Excel</span>
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleFileChange}
+                                    className="block w-full text-sm text-gray-500
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-lg file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-blue-50 file:text-blue-700
+                                        hover:file:bg-blue-100 cursor-pointer"
+                                />
+                            </label>
+                        </div>
+                    )}
+
+                    {/* Preview */}
+                    {previewData && !results && (
+                        <div className="bg-white rounded-xl shadow-lg p-8">
+                            <h2 className="text-2xl font-bold mb-6">📊 Anteprima Import</h2>
+                            
+                            <div className="grid grid-cols-3 gap-4 mb-6">
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Totale Righe</div>
+                                    <div className="text-3xl font-bold text-blue-600">{previewData.total}</div>
+                                </div>
+                                <div className="bg-green-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">P.IVA Valide</div>
+                                    <div className="text-3xl font-bold text-green-600">{previewData.valid}</div>
+                                </div>
+                                <div className="bg-red-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Errori</div>
+                                    <div className="text-3xl font-bold text-red-600">{previewData.errors.length}</div>
+                                </div>
+                            </div>
+
+                            {previewData.errors.length > 0 && (
+                                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                    <h3 className="font-bold mb-2">⚠️ Errori trovati:</h3>
+                                    <ul className="text-sm space-y-1">
+                                        {previewData.errors.slice(0, 5).map((err, idx) => (
+                                            <li key={idx}>Riga {err.row}: {err.error}</li>
+                                        ))}
+                                        {previewData.errors.length > 5 && (
+                                            <li>... e altri {previewData.errors.length - 5} errori</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
+
+                            <div className="mb-6">
+                                <h3 className="font-bold mb-3">P.IVA da importare (prime 10):</h3>
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="grid grid-cols-5 gap-2 font-mono text-sm">
+                                        {previewData.piveList.slice(0, 10).map((piva, idx) => (
+                                            <div key={idx} className="bg-white px-3 py-2 rounded border">
+                                                {piva}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {previewData.piveList.length > 10 && (
+                                        <div className="mt-3 text-sm text-gray-600">
+                                            ... e altre {previewData.piveList.length - 10} P.IVA
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={startImport}
+                                    disabled={importing}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {importing ? '⏳ Import in corso...' : '🚀 Avvia Import'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setPreviewData(null);
+                                        setFile(null);
+                                    }}
+                                    disabled={importing}
+                                    className="bg-gray-300 hover:bg-gray-400 px-6 py-3 rounded-lg font-semibold disabled:opacity-50"
+                                >
+                                    Annulla
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Progress */}
+                    {importing && (
+                        <div className="bg-white rounded-xl shadow-lg p-8 mt-6">
+                            <h2 className="text-2xl font-bold mb-6">⏳ Import in corso...</h2>
+                            <div className="mb-4">
+                                <div className="flex justify-between text-sm mb-2">
+                                    <span>Progresso: {progress.current} / {progress.total}</span>
+                                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-4">
+                                    <div 
+                                        className="bg-blue-600 h-4 rounded-full transition-all duration-300"
+                                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                                ⚠️ Non chiudere questa pagina. L'import può richiedere diversi minuti.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Results */}
+                    {results && (
+                        <div className="bg-white rounded-xl shadow-lg p-8">
+                            <h2 className="text-2xl font-bold mb-6">✅ Import Completato</h2>
+                            
+                            <div className="grid grid-cols-4 gap-4 mb-6">
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Totale</div>
+                                    <div className="text-3xl font-bold text-blue-600">{results.total}</div>
+                                </div>
+                                <div className="bg-green-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Successo</div>
+                                    <div className="text-3xl font-bold text-green-600">{results.success}</div>
+                                </div>
+                                <div className="bg-yellow-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Saltate</div>
+                                    <div className="text-3xl font-bold text-yellow-600">{results.skipped}</div>
+                                </div>
+                                <div className="bg-red-50 p-4 rounded-lg">
+                                    <div className="text-sm text-gray-600">Fallite</div>
+                                    <div className="text-3xl font-bold text-red-600">{results.failed}</div>
+                                </div>
+                            </div>
+
+                            {results.details && results.details.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="font-bold mb-3">Dettagli:</h3>
+                                    <div className="max-h-96 overflow-y-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50 sticky top-0">
+                                                <tr>
+                                                    <th className="px-4 py-2 text-left">P.IVA</th>
+                                                    <th className="px-4 py-2 text-left">Status</th>
+                                                    <th className="px-4 py-2 text-left">Messaggio</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {results.details.map((detail, idx) => (
+                                                    <tr key={idx} className="border-t">
+                                                        <td className="px-4 py-2 font-mono">{detail.piva}</td>
+                                                        <td className="px-4 py-2">
+                                                            {detail.status === 'success' && <span className="text-green-600">✅ OK</span>}
+                                                            {detail.status === 'skipped' && <span className="text-yellow-600">⏭️ Skip</span>}
+                                                            {detail.status === 'failed' && <span className="text-red-600">❌ Errore</span>}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-gray-600">{detail.message}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setView('companies')}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
+                                >
+                                    Vai alle Aziende
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setResults(null);
+                                        setPreviewData(null);
+                                        setFile(null);
+                                    }}
+                                    className="bg-gray-300 hover:bg-gray-400 px-6 py-3 rounded-lg font-semibold"
+                                >
+                                    Nuovo Import
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ============================================
         // MAIN APP COMPONENT
         // ============================================
+        // ===== DASHBOARD ANALYTICS COMPONENT =====
+        function DashboardAnalytics({ companies, onClose }) {
+            const [stats, setStats] = useState(null);
+            
+            useEffect(() => {
+                if (companies && companies.length > 0) {
+                    // Calculate aggregated statistics
+                    const totalCompanies = companies.length;
+                    const avgScore = companies.reduce((sum, c) => sum + (c.score_creditizio?.score || 0), 0) / totalCompanies;
+                    const totalRevenue = companies.reduce((sum, c) => sum + (c.bilancio_conto_economico_totale_ricavi || 0), 0);
+                    const totalEmployees = companies.reduce((sum, c) => sum + (c.dipendenti || 0), 0);
+                    
+                    // Rating distribution
+                    const ratingDist = {};
+                    companies.forEach(c => {
+                        const rating = c.score_creditizio?.rating || 'N/A';
+                        ratingDist[rating] = (ratingDist[rating] || 0) + 1;
+                    });
+                    
+                    // Sector distribution
+                    const sectorDist = {};
+                    companies.forEach(c => {
+                        const sector = c.settore || 'Altro';
+                        const shortSector = sector.substring(0, 30);
+                        sectorDist[shortSector] = (sectorDist[shortSector] || 0) + 1;
+                    });
+                    
+                    setStats({
+                        totalCompanies,
+                        avgScore: Math.round(avgScore),
+                        totalRevenue,
+                        totalEmployees,
+                        ratingDist,
+                        sectorDist
+                    });
+                    
+                    // Create charts
+                    setTimeout(() => {
+                        createRatingChart(ratingDist);
+                        createScoreDistributionChart(companies);
+                    }, 100);
+                }
+            }, [companies]);
+            
+            const createRatingChart = (ratingDist) => {
+                const canvas = document.getElementById('chartRating');
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                if (canvas.chart) canvas.chart.destroy();
+                
+                const ratings = Object.keys(ratingDist).sort();
+                const values = ratings.map(r => ratingDist[r]);
+                
+                canvas.chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ratings,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: [
+                                'rgb(34, 197, 94)',   // Green
+                                'rgb(59, 130, 246)',  // Blue
+                                'rgb(251, 191, 36)',  // Yellow
+                                'rgb(239, 68, 68)',   // Red
+                                'rgb(168, 85, 247)',  // Purple
+                                'rgb(156, 163, 175)'  // Gray
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribuzione Rating'
+                            }
+                        }
+                    }
+                });
+            };
+            
+            const createScoreDistributionChart = (companies) => {
+                const canvas = document.getElementById('chartScoreDistribution');
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                if (canvas.chart) canvas.chart.destroy();
+                
+                // Group by score ranges
+                const ranges = {
+                    '0-40': 0,
+                    '41-60': 0,
+                    '61-80': 0,
+                    '81-100': 0
+                };
+                
+                companies.forEach(c => {
+                    const score = c.score_creditizio?.score || 0;
+                    if (score <= 40) ranges['0-40']++;
+                    else if (score <= 60) ranges['41-60']++;
+                    else if (score <= 80) ranges['61-80']++;
+                    else ranges['81-100']++;
+                });
+                
+                canvas.chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(ranges),
+                        datasets: [{
+                            label: 'Numero Aziende',
+                            data: Object.values(ranges),
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.7)',
+                                'rgba(251, 191, 36, 0.7)',
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(34, 197, 94, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribuzione Score'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+            
+            if (!stats) {
+                return (
+                    <div className="p-8">
+                        <div className="animate-pulse">Caricamento statistiche...</div>
+                    </div>
+                );
+            }
+            
+            return (
+                <div className="p-8 max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                        <h1 className="text-4xl font-bold">📊 Dashboard Analytics</h1>
+                        <button
+                            onClick={onClose}
+                            className="text-blue-600 hover:text-blue-700 flex items-center gap-2"
+                        >
+                            ← Torna alle Aziende
+                        </button>
+                    </div>
+                    
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <div className="text-sm text-gray-600 mb-2">Totale Aziende</div>
+                            <div className="text-3xl font-bold text-blue-600">{stats.totalCompanies}</div>
+                        </div>
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <div className="text-sm text-gray-600 mb-2">Score Medio</div>
+                            <div className="text-3xl font-bold text-green-600">{stats.avgScore}/100</div>
+                        </div>
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <div className="text-sm text-gray-600 mb-2">Ricavi Totali</div>
+                            <div className="text-2xl font-bold text-purple-600">€ {(stats.totalRevenue / 1000000).toFixed(1)}M</div>
+                        </div>
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <div className="text-sm text-gray-600 mb-2">Dipendenti Totali</div>
+                            <div className="text-3xl font-bold text-orange-600">{stats.totalEmployees}</div>
+                        </div>
+                    </div>
+                    
+                    {/* Charts */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <canvas id="chartRating"></canvas>
+                        </div>
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <canvas id="chartScoreDistribution"></canvas>
+                        </div>
+                    </div>
+                    
+                    {/* Top Companies */}
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <h2 className="text-2xl font-bold mb-4">🏆 Top 5 Aziende per Score</h2>
+                        <div className="space-y-3">
+                            {companies
+                                .sort((a, b) => (b.score_creditizio?.score || 0) - (a.score_creditizio?.score || 0))
+                                .slice(0, 5)
+                                .map((company, idx) => (
+                                    <div key={company._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-2xl font-bold text-gray-400">#{idx + 1}</div>
+                                            <div>
+                                                <div className="font-semibold">{company.ragione_sociale}</div>
+                                                <div className="text-sm text-gray-600">P.IVA: {company.partita_iva}</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-bold text-blue-600">
+                                                {company.score_creditizio?.score || 0}
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                {company.score_creditizio?.rating || 'N/A'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ===== APP COMPONENT =====
         function App() {
             const [user, setUser] = useState(null);
             const [token, setToken] = useState(localStorage.getItem('token'));
             const [view, setView] = useState('dashboard');
+            const [showAnalytics, setShowAnalytics] = useState(false);
             const [selectedCompany, setSelectedCompany] = useState(null);
+            const [companies, setCompanies] = useState([]);
 
             useEffect(() => {
                 if (token) {
                     verifyToken();
+                    loadCompanies();
                 }
             }, [token]);
+            
+            const loadCompanies = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/companies`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        setCompanies(data.companies || []);
+                    }
+                } catch (error) {
+                    console.error('[App] Error loading companies:', error);
+                }
+            };
 
             const verifyToken = async () => {
                 try {
@@ -1392,17 +2079,29 @@
                         )}
                     </div>
 
-                    <Sidebar view={view} setView={setView} logout={logout} user={user} />
+                    <Sidebar 
+                        view={view} 
+                        setView={setView} 
+                        logout={logout} 
+                        user={user}
+                        setShowAnalytics={setShowAnalytics}
+                    />
                     <main className="flex-1 overflow-auto">
-                        {view === 'dashboard' && <Dashboard token={token} />}
-                        {view === 'companies' && !selectedCompany && (
+                        {showAnalytics && companies && (
+                            <DashboardAnalytics 
+                                companies={companies}
+                                onClose={() => setShowAnalytics(false)}
+                            />
+                        )}
+                        {!showAnalytics && view === 'dashboard' && <Dashboard token={token} />}
+                        {!showAnalytics && view === 'companies' && !selectedCompany && (
                             <Companies 
                                 token={token} 
                                 setView={setView}
                                 setSelectedCompany={setSelectedCompany}
                             />
                         )}
-                        {view === 'companies' && selectedCompany && (
+                        {!showAnalytics && view === 'companies' && selectedCompany && (
                             <ErrorBoundary>
                                 <CompanyDetail 
                                     company={selectedCompany}
@@ -1412,8 +2111,9 @@
                                 />
                             </ErrorBoundary>
                         )}
-                        {view === 'new-company' && <NewCompany token={token} setView={setView} />}
-                        {view === 'import-piva' && <ImportPIVA token={token} setView={setView} />}
+                        {!showAnalytics && view === 'new-company' && <NewCompany token={token} setView={setView} />}
+                        {!showAnalytics && view === 'import-piva' && <ImportPIVA token={token} setView={setView} />}
+                        {!showAnalytics && view === 'batch-import' && <BatchImport token={token} setView={setView} />}
                     </main>
                 </div>
             );
