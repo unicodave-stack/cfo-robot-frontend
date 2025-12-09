@@ -314,7 +314,7 @@
                     </div>
 
                     <div className="mt-8 bg-white rounded-xl shadow p-6">
-                        <h2 className="text-2xl font-bold mb-4">Benvenuto in CFO Robot v4.0</h2>
+                        <h2 className="text-2xl font-bold mb-4">Benvenuto in CFO Robot v5.0</h2>
                         <p className="text-gray-700 mb-4">
                             Sistema avanzato di analisi creditizia e gestione aziendale.
                         </p>
@@ -641,7 +641,7 @@
                 // Title
                 doc.setFontSize(20);
                 doc.setTextColor(40);
-                doc.text('Report Aziendale CFO Robot v4.0', 20, 20);
+                doc.text('Report Aziendale CFO Robot v5.0', 20, 20);
                 
                 // Company Info
                 doc.setFontSize(16);
@@ -746,7 +746,7 @@
                 // Footer
                 doc.setFontSize(8);
                 doc.setTextColor(150);
-                doc.text(`Generato da CFO Robot v4.0 - ${new Date().toLocaleDateString('it-IT')}`, 20, 285);
+                doc.text(`Generato da CFO Robot v5.0 - ${new Date().toLocaleDateString('it-IT')}`, 20, 285);
                 
                 // Save
                 doc.save(`${safeCompany.ragione_sociale || 'azienda'}_report.pdf`);
